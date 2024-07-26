@@ -11,10 +11,12 @@ import time
 from datetime import datetime, timedelta
 from threading import Thread
 import queue
+from pathlib import Path
 
 VERSION = "1.0.0"  # Update this as needed
 FONT_SIZE = 12 
 LOGGING_ENABLED = True
+TEST_DIR = Path('tests')
 
 # Create necessary directories if they don't exist
 if not os.path.exists("data"):
@@ -196,11 +198,11 @@ class TestExecutor:
             self.timer_label.config(text="")
 
     def load_settings(self):
-        with open('tests/test_settings.yaml', 'r') as f:
+        with open(TEST_DIR/'test_settings.yaml', 'r') as f:
             self.settings = yaml.safe_load(f)
 
-        if os.path.exists('tests/user_test_settings.yaml'):
-            with open('tests/user_test_settings.yaml', 'r') as f:
+        if os.path.exists(TEST_DIR/'user_test_settings.yaml'):
+            with open(TEST_DIR/'user_test_settings.yaml', 'r') as f:
                 user_settings = yaml.safe_load(f)
                 self.settings.update(user_settings)
 
@@ -212,7 +214,7 @@ class TestExecutor:
 
 
     def load_test_series(self):
-        with open('tests/test_series.yaml', 'r') as f:
+        with open(TEST_DIR/'test_series.yaml', 'r') as f:
             self.test_series = yaml.safe_load(f)
 
         self.test_items = []
