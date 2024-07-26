@@ -16,6 +16,9 @@ class TestExecutor:
         self.master = master
         self.master.title("Test Executor")
         self.master.geometry("1000x800")
+        
+        # Bind the close event
+        self.master.protocol("WM_DELETE_WINDOW", self.on_closing)
 
         self.create_menu()
         self.create_gui()
@@ -27,6 +30,8 @@ class TestExecutor:
         
         self.current_test_index = 0
         self.is_running_tests = False
+        self.current_test_thread = None
+
 
     def create_menu(self):
         menubar = tk.Menu(self.master)
@@ -133,17 +138,17 @@ class TestExecutor:
 
         self.output_text.insert(tk.END, f"Running test: {test_name}\n")
         self.output_text.see(tk.END)
-        if test_info['file'][-3:] == ".py":
-            test_module = importlib.import_module(f"tests.{test_info['file'][:-3]}")
+
         test_module = importlib.import_module(f"tests.{test_info['file']}")
         
         # Create a custom plot function for the test to use
         def plot_function(*args, **kwargs):
             self.graph_queue.put((args, kwargs))
-       
+        
         # Run the test in a separate thread
-        thread = Thread(target=self.run_test_thread, args=(test_module, plot_function, index))
-        thread.start()
+        self.current_test_thread = Thread(target=self.run_test_thread, args=(test_module, plot_function, index))
+        self.current_test_thread.daemon = True  # Set thread as daemon
+        self.current_test_thread.start()
 
     def run_test_thread(self, test_module, plot_function, index):
         result = test_module.maintest(self.settings, self.test_series, plot_function)
@@ -196,8 +201,18 @@ class TestExecutor:
 
         sys.stdout = StdoutRedirector(self.output_text)
 
+    def on_closing(self):
+        if self.is_running_tests:
+            if tk.messagebox.askokcancel("Quit", "Tests are still running. Do you want to quit?"):
+                self.master.quit()
+        else:
+            self.master.quit()
+
+
 if __name__ == "__main__":
     root = tk.Tk()
     app = TestExecutor(root)
     app.redirect_output()
     root.mainloop()
+    # Ensure all threads are stopped
+    sys.exit()
