@@ -12,4 +12,4 @@ def maintest(settings, test_series, plot_function):
         print(f"Counting down: {i}")
         time.sleep(1)
     print("Whoops...")
-    return "fail"
+    return "softfail"
