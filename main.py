@@ -140,7 +140,7 @@ class TestExecutor:
         # Create a custom plot function for the test to use
         def plot_function(*args, **kwargs):
             self.graph_queue.put((args, kwargs))
-        
+       
         # Run the test in a separate thread
         thread = Thread(target=self.run_test_thread, args=(test_module, plot_function, index))
         thread.start()
@@ -174,7 +174,8 @@ class TestExecutor:
 
     def update_graph(self, *args, **kwargs):
         self.ax.clear()
-        self.ax.plot(*args, **kwargs)
+        plot_args = args[0] if args and isinstance(args[0], tuple) else args
+        self.ax.plot(*plot_args)
         self.ax.set_title(kwargs.get('title', ''))
         self.ax.set_xlabel(kwargs.get('xlabel', ''))
         self.ax.set_ylabel(kwargs.get('ylabel', ''))
