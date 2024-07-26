@@ -8,8 +8,11 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import importlib
 import time
+from datetime import datetime, timedelta
 from threading import Thread
 import queue
+
+VERSION = "1.0.0"  # Update this as needed
 
 class TestListItem(tk.Frame):
     def __init__(self, master, test_name, index, on_select_callback, **kwargs):
@@ -18,8 +21,8 @@ class TestListItem(tk.Frame):
         self.index = index
         self.on_select_callback = on_select_callback
         self.status = "pending"
-        
-        self.status_label = tk.Label(self, text="•", width=2)
+
+        self.status_label = tk.Label(self, text="-", width=2)
         self.status_label.pack(side=tk.LEFT)
         self.name_label = tk.Label(self, text=test_name, anchor="w")
         self.name_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
@@ -32,7 +35,7 @@ class TestListItem(tk.Frame):
         
     def set_status(self, status):
         self.status = status
-        status_icons = {"pass": "✓", "softfail": "⚠", "fail": "✗", "done": "•", "pending": "•"}
+        status_icons = {"pass": "✓", "softfail": "⚠", "fail": "✗", "done": "•", "pending": "-"}
         self.status_label.config(text=status_icons.get(status, "•"))
         
     def on_click(self, event):
@@ -69,6 +72,10 @@ class TestExecutor:
         self.stop_test_series = False
         self.current_test_thread = None
         self.selected_test_index = None
+
+        # self.create_status_bar()
+        self.start_time = None
+
 
     def create_menu(self):
         menubar = tk.Menu(self.master)
@@ -107,14 +114,17 @@ class TestExecutor:
         self.control_frame = ttk.Frame(left_frame)
         self.control_frame.pack(side=tk.BOTTOM, fill=tk.X)
 
+        self.run_all_button = ttk.Button(self.control_frame, text="Run All Tests", command=self.run_all_tests)
+        self.run_all_button.pack(side=tk.LEFT)
+
         self.run_selected_button = ttk.Button(self.control_frame, text="Run selected test", command=self.run_selected_test)
         self.run_selected_button.pack(side=tk.LEFT)
 
         self.run_selected_continue_button = ttk.Button(self.control_frame, text="Run selected test, then continue", command=self.run_selected_test_continue)
         self.run_selected_continue_button.pack(side=tk.LEFT)
 
-        self.run_all_button = ttk.Button(self.control_frame, text="Run All Tests", command=self.run_all_tests)
-        self.run_all_button.pack(side=tk.LEFT)
+        self.stop_test_series_button = ttk.Button(self.control_frame, text="Stop", command=self.set_stop_test_series)
+        self.stop_test_series_button.pack(side=tk.LEFT)
 
         # Test running indicator
         self.test_running_indicator = tk.Label(self.control_frame, text="●", fg="gray")
@@ -134,6 +144,35 @@ class TestExecutor:
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
 
+        self.create_status_bar()
+
+    def create_status_bar(self):
+        self.status_bar = tk.Frame(self.master)
+        self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
+
+        self.version_label = tk.Label(self.status_bar, text=f"Version: {VERSION}")
+        self.version_label.pack(side=tk.LEFT, padx=5)
+
+        self.status_label = tk.Label(self.status_bar, text="Ready")
+        self.status_label.pack(side=tk.RIGHT, padx=5)
+
+        self.timer_label = tk.Label(self.status_bar, text="")
+        self.timer_label.pack(side=tk.RIGHT, padx=5)
+
+    def update_status(self, status):
+        self.status_label.config(text=status)
+
+    def update_timer(self):
+        if self.start_time and self.is_running_tests:
+            elapsed_time = datetime.now() - self.start_time
+            hours, remainder = divmod(int(elapsed_time.total_seconds()), 3600)
+            minutes, seconds = divmod(remainder, 60)
+            time_str = f"{hours:02d}h {minutes:02d}m {seconds:02d}s"
+            self.timer_label.config(text=f"Runtime: {time_str}")
+            self.master.after(1000, self.update_timer)
+        else:
+            self.timer_label.config(text="")
+
     def load_settings(self):
         with open('test_settings.yaml', 'r') as f:
             self.settings = yaml.safe_load(f)
@@ -142,6 +181,13 @@ class TestExecutor:
             with open('user_test_settings.yaml', 'r') as f:
                 user_settings = yaml.safe_load(f)
                 self.settings.update(user_settings)
+
+    def set_stop_test_series(self):
+        if self.is_running_tests:
+            self.stop_test_series = True
+            self.output_text.insert(tk.END, f"\n! Discontinuing test progression !\n - Test series will stop at conclusion of present test.\n\n")
+            self.output_text.see(tk.END)
+
 
     def load_test_series(self):
         with open('test_series.yaml', 'r') as f:
@@ -169,7 +215,9 @@ class TestExecutor:
         if self.selected_test_index is not None and not self.is_running_tests:
             self.current_test_index = self.selected_test_index
             self.is_running_tests = True
-            self.test_running_indicator.config(fg="green")
+            self.start_time = datetime.now()
+            self.update_timer()
+            self.test_running_indicator.config(fg="red")
             self.output_text.insert(tk.END, f"\n--- Running selected test: {self.test_items[self.current_test_index].test_name} ---\n\n")
             self.output_text.see(tk.END)
             try:
@@ -181,21 +229,27 @@ class TestExecutor:
                 self.is_running_tests = False
                 self.stop_test_series = False
                 self.test_running_indicator.config(fg="gray")
+                self.update_status("Test error")
+                self.start_time = None
 
     def run_selected_test_continue(self):
         if self.selected_test_index is not None and not self.is_running_tests:
+            self.stop_test_series = False
             self.output_text.insert(tk.END, "\n--- Starting new test run from selected test ---\n\n")
             self.output_text.see(tk.END)
             self.run_all_tests(starting_index=self.selected_test_index)
 
     def run_all_tests(self, starting_index=0):
         if not self.is_running_tests:
+            self.stop_test_series = False
             self.is_running_tests = True
             self.current_test_index = starting_index
+            self.start_time = datetime.now()
+            self.update_timer()
             if starting_index == 0:
                 self.output_text.insert(tk.END, "\n--- Starting new test run ---\n\n")
             self.output_text.see(tk.END)
-            self.test_running_indicator.config(fg="green")
+            self.test_running_indicator.config(fg="red")
             self.run_next_test()
 
     def curselection(self):
@@ -245,6 +299,12 @@ class TestExecutor:
     def run_test(self, index):
         test_item = self.test_items[index]
         test_name = test_item.test_name
+        self.update_status(f"Test [{test_name}] running")
+        
+        if self.start_time is None:
+            self.start_time = datetime.now()
+            self.update_timer()
+
         try:
             test_info = next(test for test in self.test_series['tests'] if test['name'] == test_name)
         except StopIteration:
@@ -279,6 +339,8 @@ class TestExecutor:
         if result == "fail":
             self.is_running_tests = False
             self.test_running_indicator.config(fg="gray")
+            self.update_status("Test failed")
+            self.start_time = None
             messagebox.showerror("Test Failed", f"The test '{test_item.test_name}' has failed. Test series stopped.")
         elif self.stop_test_series:
             self.stop_test_series=False
@@ -286,9 +348,17 @@ class TestExecutor:
             self.test_running_indicator.config(fg="gray")
             self.output_text.insert(tk.END, f"Test series stopped.\n\n")
             self.output_text.see(tk.END)
+            self.update_status("Test series stopped")
+            self.start_time = None
         else:
             self.current_test_index += 1
-            self.run_next_test()
+            if self.current_test_index < len(self.test_items):
+                self.run_next_test()
+            else:
+                self.is_running_tests = False
+                self.test_running_indicator.config(fg="gray")
+                self.update_status("All tests completed")
+                self.start_time = None
 
     def check_graph_queue(self):
         try:
@@ -325,6 +395,8 @@ class TestExecutor:
     def on_closing(self):
         if self.is_running_tests:
             if tk.messagebox.askokcancel("Quit", "Tests are still running. Do you want to quit?"):
+                self.is_running_tests = False
+                self.start_time = None
                 self.master.quit()
         else:
             self.master.quit()
