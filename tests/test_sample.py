@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import simpledialog
 
-def maintest(settings, test_series):
+def maintest(settings, test_series, *args, **kwargs):
     root = tk.Tk()
     root.withdraw()
     

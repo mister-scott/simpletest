@@ -3,5 +3,7 @@ tests:
     file: test_sample
   - name: Count and Graph Test
     file: test_count_and_graph
+  - name: Count Only Test
+    file: test_count
   - name: Random CSV Test
     file: test_random_csv

@@ -2,24 +2,28 @@ import os
 import sys
 import yaml
 import tkinter as tk
-from tkinter import ttk, simpledialog
+from tkinter import ttk
 from tkinter.scrolledtext import ScrolledText
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import importlib
 import time
 from threading import Thread
+import queue
 
 class TestExecutor:
     def __init__(self, master):
         self.master = master
         self.master.title("Test Executor")
-        self.master.geometry("800x600")
+        self.master.geometry("1000x800")
 
         self.create_menu()
         self.create_gui()
         self.load_settings()
         self.load_test_series()
+        
+        self.graph_queue = queue.Queue()
+        self.master.after(100, self.check_graph_queue)
 
     def create_menu(self):
         menubar = tk.Menu(self.master)
@@ -30,32 +34,41 @@ class TestExecutor:
         menubar.add_cascade(label="File", menu=file_menu)
 
     def create_gui(self):
+        # Main frame
+        main_frame = ttk.Frame(self.master)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Left frame for test list and controls
+        left_frame = ttk.Frame(main_frame)
+        left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
         # Test list section
-        self.test_frame = ttk.Frame(self.master)
-        self.test_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.test_frame = ttk.Frame(left_frame)
+        self.test_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
         self.test_listbox = tk.Listbox(self.test_frame, width=50)
         self.test_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        # Text output section
-        self.output_frame = ttk.Frame(self.master)
-        self.output_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
-
-        self.output_text = ScrolledText(self.output_frame)
-        self.output_text.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-
-        # Matplotlib section
-        self.fig, self.ax = plt.subplots()
-        self.canvas = FigureCanvasTkAgg(self.fig, master=self.output_frame)
-        self.canvas.draw()
-        self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-
         # Controls section
-        self.control_frame = ttk.Frame(self.master)
+        self.control_frame = ttk.Frame(left_frame)
         self.control_frame.pack(side=tk.BOTTOM, fill=tk.X)
 
         self.run_all_button = ttk.Button(self.control_frame, text="Run All Tests", command=self.run_all_tests)
         self.run_all_button.pack(side=tk.LEFT)
+
+        # Right frame for output and graph
+        right_frame = ttk.Frame(main_frame)
+        right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+
+        # Text output section
+        self.output_text = ScrolledText(right_frame, height=20)
+        self.output_text.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+        # Matplotlib section
+        self.fig, self.ax = plt.subplots(figsize=(5, 4))
+        self.canvas = FigureCanvasTkAgg(self.fig, master=right_frame)
+        self.canvas.draw()
+        self.canvas.get_tk_widget().pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
 
     def load_settings(self):
         with open('test_settings.yaml', 'r') as f:
@@ -111,15 +124,46 @@ class TestExecutor:
         self.output_text.see(tk.END)
 
         test_module = importlib.import_module(f"tests.{test_info['file']}")
-        result = test_module.maintest(self.settings, self.test_series)
+        
+        # Create a custom plot function for the test to use
+        def plot_function(*args, **kwargs):
+            self.graph_queue.put((args, kwargs))
+        
+        # Run the test in a separate thread
+        thread = Thread(target=self.run_test_thread, args=(test_module, plot_function))
+        thread.start()
 
+    def run_test_thread(self, test_module, plot_function):
+        result = test_module.maintest(self.settings, self.test_series, plot_function)
+        self.master.after(0, self.update_test_result, result)
+
+    def update_test_result(self, result):
         self.output_text.insert(tk.END, f"Test result: {result}\n\n")
         self.output_text.see(tk.END)
 
         # Update test status in the listbox
+        index = self.test_listbox.curselection()[0]
+        test_name = self.test_listbox.get(index)
         status_icon = "✓" if result == "pass" else "✗" if result == "fail" else "•"
         self.test_listbox.delete(index)
         self.test_listbox.insert(index, f"{status_icon} {test_name}")
+
+    def check_graph_queue(self):
+        try:
+            args, kwargs = self.graph_queue.get_nowait()
+            self.update_graph(*args, **kwargs)
+        except queue.Empty:
+            pass
+        self.master.after(100, self.check_graph_queue)
+
+    def update_graph(self, *args, **kwargs):
+        self.ax.clear()
+        self.ax.plot(*args, **kwargs)
+        self.ax.set_title(kwargs.get('title', ''))
+        self.ax.set_xlabel(kwargs.get('xlabel', ''))
+        self.ax.set_ylabel(kwargs.get('ylabel', ''))
+        self.ax.grid(kwargs.get('grid', False))
+        self.canvas.draw()
 
     def redirect_output(self):
         class StdoutRedirector:

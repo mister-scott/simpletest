@@ -2,7 +2,7 @@ import os
 import csv
 import random
 
-def maintest(settings, test_series):
+def maintest(settings, test_series, *args, **kwargs):
     # Generate 50 random values
     random_values = [random.uniform(0, 100) for _ in range(50)]
 
