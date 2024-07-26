@@ -1,0 +1,7 @@
+tests:
+  - name: Sample Test
+    file: test_sample
+  - name: Count and Graph Test
+    file: test_count_and_graph
+  - name: Random CSV Test
+    file: test_random_csv
