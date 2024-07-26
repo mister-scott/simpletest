@@ -24,6 +24,9 @@ class TestExecutor:
         
         self.graph_queue = queue.Queue()
         self.master.after(100, self.check_graph_queue)
+        
+        self.current_test_index = 0
+        self.is_running_tests = False
 
     def create_menu(self):
         menubar = tk.Menu(self.master)
@@ -113,8 +116,16 @@ class TestExecutor:
         self.settings.update(user_settings)
 
     def run_all_tests(self):
-        for i in range(self.test_listbox.size()):
-            self.run_test(i)
+        if not self.is_running_tests:
+            self.is_running_tests = True
+            self.current_test_index = 0
+            self.run_next_test()
+
+    def run_next_test(self):
+        if self.current_test_index < self.test_listbox.size():
+            self.run_test(self.current_test_index)
+        else:
+            self.is_running_tests = False
 
     def run_test(self, index):
         test_name = self.test_listbox.get(index)
@@ -122,7 +133,8 @@ class TestExecutor:
 
         self.output_text.insert(tk.END, f"Running test: {test_name}\n")
         self.output_text.see(tk.END)
-
+        if test_info['file'][-3:] == ".py":
+            test_module = importlib.import_module(f"tests.{test_info['file'][:-3]}")
         test_module = importlib.import_module(f"tests.{test_info['file']}")
         
         # Create a custom plot function for the test to use
@@ -130,24 +142,28 @@ class TestExecutor:
             self.graph_queue.put((args, kwargs))
         
         # Run the test in a separate thread
-        thread = Thread(target=self.run_test_thread, args=(test_module, plot_function))
+        thread = Thread(target=self.run_test_thread, args=(test_module, plot_function, index))
         thread.start()
 
-    def run_test_thread(self, test_module, plot_function):
+    def run_test_thread(self, test_module, plot_function, index):
         result = test_module.maintest(self.settings, self.test_series, plot_function)
-        self.master.after(0, self.update_test_result, result)
+        self.master.after(0, self.update_test_result, result, index)
 
-    def update_test_result(self, result):
+    def update_test_result(self, result, index):
         self.output_text.insert(tk.END, f"Test result: {result}\n\n")
         self.output_text.see(tk.END)
 
         # Update test status in the listbox
-        index = self.test_listbox.curselection()[0]
         test_name = self.test_listbox.get(index)
         status_icon = "✓" if result == "pass" else "✗" if result == "fail" else "•"
         self.test_listbox.delete(index)
         self.test_listbox.insert(index, f"{status_icon} {test_name}")
 
+        # Move to the next test
+        self.current_test_index += 1
+        self.run_next_test()
+
+    # ... [keep all other methods unchanged] ...
     def check_graph_queue(self):
         try:
             args, kwargs = self.graph_queue.get_nowait()

@@ -1,6 +1,6 @@
 tests:
-  - name: Sample Test
-    file: test_sample
+  - name: Request User Name
+    file: test_username
   - name: Count and Graph Test
     file: test_count_and_graph
   - name: Count Only Test

@@ -8,8 +8,8 @@ def maintest(settings, test_series, plot_function):
         time.sleep(1)
 
     # Count down from 5 to 1
-    for i in range(5, 0, -1):
+    for i in range(5, 2, -1):
         print(f"Counting down: {i}")
         time.sleep(1)
-
-    return "done"
+    print("Whoops...")
+    return "fail"
