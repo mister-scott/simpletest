@@ -42,6 +42,7 @@ def maintest(settings, test_series, plot_function):
 ## Configuration
 
 test_settings.yaml: Contains default settings for the test environment.
+
 test_series.yaml: Defines the tests to be run and their order.
 
 ## Features
@@ -53,28 +54,36 @@ test_series.yaml: Defines the tests to be run and their order.
 * Status Tracking: Visual indicators for test status (pass, fail, running, etc.).
 * Logging: Option to save console output to output/log.txt.
 
-## Global Variables
-
-VERSION: Current version of the application.
-FONT_SIZE: Global font size for the GUI.
-LOGGING_ENABLED: When True, writes console output to output/log.txt.
 
 ## Usage
 
 Run main.py to start the application.
+
 Use the GUI to select and run tests.
+
 View results in the output pane and any generated graphs.
+
 Adjust settings as needed through the settings menu.
+
+### Global Variables
+
+* VERSION: Current version of the application.
+* FONT_SIZE: Global font size for the GUI.
+* LOGGING_ENABLED: When True, writes console output to output/log.txt.
 
 ### Adding New Tests
 
 Create a new Python file in the tests/ directory.
+
 Implement the maintest function as described in the Test Structure section.
+
 Add the new test to test_series.yaml.
 
 ### Logging
 When LOGGING_ENABLED is set to True, all console output is also written to output/log.txt. This feature helps in preserving test results and debugging.
-Notes
+
+## Notes
 
 Ensure all required Python libraries are installed (tkinter, matplotlib, pyyaml).
+
 The application is designed to be modular, allowing easy addition of new tests and features.
