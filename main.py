@@ -13,6 +13,17 @@ from threading import Thread
 import queue
 
 VERSION = "1.0.0"  # Update this as needed
+FONT_SIZE = 12 
+LOGGING_ENABLED = True
+
+# Create necessary directories if they don't exist
+if not os.path.exists("data"):
+    os.makedirs("data")
+if not os.path.exists("output"):
+    os.makedirs("output")
+
+def get_font(size_adjustment=0, weight="normal"):
+    return ("TkDefaultFont", FONT_SIZE + size_adjustment, weight)
 
 class TestListItem(tk.Frame):
     def __init__(self, master, test_name, index, on_select_callback, **kwargs):
@@ -22,9 +33,9 @@ class TestListItem(tk.Frame):
         self.on_select_callback = on_select_callback
         self.status = "pending"
 
-        self.status_label = tk.Label(self, text="-", width=2)
+        self.status_label = tk.Label(self, text="⃝", width=2, font=get_font())
         self.status_label.pack(side=tk.LEFT)
-        self.name_label = tk.Label(self, text=test_name, anchor="w")
+        self.name_label = tk.Label(self, text=test_name, anchor="w",  font=get_font())
         self.name_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
         
         self.bind("<Button-1>", self.on_click)
@@ -54,9 +65,19 @@ class TestListItem(tk.Frame):
 class TestExecutor:
     def __init__(self, master):
         self.master = master
-        self.master.title("Test Executor")
+        self.master.title("SimpleTest")
         self.master.geometry("1000x800")
         
+        # Apply default font to the root window
+        default_font = get_font()
+        self.master.option_add("*Font", default_font)
+        
+        # Create a custom style for ttk widgets
+        self.style = ttk.Style()
+        self.style.configure("TButton", font=get_font())
+        self.style.configure("TLabel", font=get_font())
+
+
         self.master.protocol("WM_DELETE_WINDOW", self.on_closing)
 
         self.create_menu()
@@ -114,16 +135,16 @@ class TestExecutor:
         self.control_frame = ttk.Frame(left_frame)
         self.control_frame.pack(side=tk.BOTTOM, fill=tk.X)
 
-        self.run_all_button = ttk.Button(self.control_frame, text="Run All Tests", command=self.run_all_tests)
+        self.run_all_button = ttk.Button(self.control_frame, text="Run All", command=self.run_all_tests, style="TButton")
         self.run_all_button.pack(side=tk.LEFT)
 
-        self.run_selected_button = ttk.Button(self.control_frame, text="Run selected test", command=self.run_selected_test)
+        self.run_selected_button = ttk.Button(self.control_frame, text="Run Selected", command=self.run_selected_test, style="TButton")
         self.run_selected_button.pack(side=tk.LEFT)
 
-        self.run_selected_continue_button = ttk.Button(self.control_frame, text="Run selected test, then continue", command=self.run_selected_test_continue)
+        self.run_selected_continue_button = ttk.Button(self.control_frame, text="Run Selected, Continue", command=self.run_selected_test_continue, style="TButton")
         self.run_selected_continue_button.pack(side=tk.LEFT)
 
-        self.stop_test_series_button = ttk.Button(self.control_frame, text="Stop", command=self.set_stop_test_series)
+        self.stop_test_series_button = ttk.Button(self.control_frame, text="Stop", command=self.set_stop_test_series,style="TButton")
         self.stop_test_series_button.pack(side=tk.LEFT)
 
         # Test running indicator
@@ -135,7 +156,8 @@ class TestExecutor:
         right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
 
         # Text output section
-        self.output_text = ScrolledText(right_frame, height=20)
+        # Example of using custom font sizes
+        self.output_text = ScrolledText(right_frame, height=20, font=get_font())
         self.output_text.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
         # Matplotlib section
@@ -150,13 +172,13 @@ class TestExecutor:
         self.status_bar = tk.Frame(self.master)
         self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
 
-        self.version_label = tk.Label(self.status_bar, text=f"Version: {VERSION}")
+        self.version_label = tk.Label(self.status_bar, text=f"v{VERSION}", font=get_font(-1))  # Slightly smaller font
         self.version_label.pack(side=tk.LEFT, padx=5)
 
-        self.status_label = tk.Label(self.status_bar, text="Ready")
+        self.status_label = tk.Label(self.status_bar, text="Ready", font=get_font())
         self.status_label.pack(side=tk.RIGHT, padx=5)
 
-        self.timer_label = tk.Label(self.status_bar, text="")
+        self.timer_label = tk.Label(self.status_bar, text="", font=get_font())
         self.timer_label.pack(side=tk.RIGHT, padx=5)
 
     def update_status(self, status):
@@ -174,11 +196,11 @@ class TestExecutor:
             self.timer_label.config(text="")
 
     def load_settings(self):
-        with open('test_settings.yaml', 'r') as f:
+        with open('tests/test_settings.yaml', 'r') as f:
             self.settings = yaml.safe_load(f)
 
-        if os.path.exists('user_test_settings.yaml'):
-            with open('user_test_settings.yaml', 'r') as f:
+        if os.path.exists('tests/user_test_settings.yaml'):
+            with open('tests/user_test_settings.yaml', 'r') as f:
                 user_settings = yaml.safe_load(f)
                 self.settings.update(user_settings)
 
@@ -190,7 +212,7 @@ class TestExecutor:
 
 
     def load_test_series(self):
-        with open('test_series.yaml', 'r') as f:
+        with open('tests/test_series.yaml', 'r') as f:
             self.test_series = yaml.safe_load(f)
 
         self.test_items = []
@@ -262,24 +284,34 @@ class TestExecutor:
         row = 0
         entries = {}
         for key, value in self.settings.items():
-            ttk.Label(settings_window, text=key).grid(row=row, column=0, sticky="w")
+            ttk.Label(settings_window, text=key, font=get_font()).grid(row=row, column=0, sticky="w")
             if isinstance(value, bool):
                 var = tk.BooleanVar(value=value)
                 ttk.Checkbutton(settings_window, variable=var).grid(row=row, column=1)
                 entries[key] = var
             else:
                 var = tk.StringVar(value=str(value))
-                ttk.Entry(settings_window, textvariable=var).grid(row=row, column=1)
+                ttk.Entry(settings_window, textvariable=var, font=get_font()).grid(row=row, column=1)
                 entries[key] = var
             row += 1
 
-        ttk.Button(settings_window, text="Save", command=lambda: self.save_settings(entries)).grid(row=row, column=0, columnspan=2)
+        button_frame = ttk.Frame(settings_window)
+        button_frame.grid(row=row, column=0, columnspan=2, pady=10)
 
-    def save_settings(self, entries):
+        ttk.Button(button_frame, text="Save", command=lambda: self.save_settings(entries, settings_window), style="TButton").pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Cancel", command=settings_window.destroy, style="TButton").pack(side=tk.LEFT, padx=5)
+
+        # Make the window modal
+        settings_window.transient(self.master)
+        settings_window.grab_set()
+        self.master.wait_window(settings_window)
+
+    def save_settings(self, entries, settings_window):
         user_settings = {k: v.get() for k, v in entries.items()}
-        with open('user_test_settings.yaml', 'w') as f:
+        with open('tests/user_test_settings.yaml', 'w') as f:
             yaml.dump(user_settings, f)
         self.settings.update(user_settings)
+        settings_window.destroy()
 
     def run_next_test(self):
         if self.current_test_index < len(self.test_items):
@@ -386,6 +418,13 @@ class TestExecutor:
             def write(self, string):
                 self.text_widget.insert(tk.END, string)
                 self.text_widget.see(tk.END)
+                if LOGGING_ENABLED:
+                    logstring = string.replace("\n", "").replace("\r", "").replace("\t", "")
+                    if len(logstring.strip()) > 1:
+                        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        logstring = f"{timestamp}: {logstring}\n"
+                        with open('output/log.txt', 'a') as f:
+                            f.write(logstring)
 
             def flush(self):
                 pass

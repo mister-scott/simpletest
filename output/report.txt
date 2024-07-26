@@ -1,1 +1,0 @@
-Sum of 50 random values: 2635.3006224345672

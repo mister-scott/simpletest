@@ -1,3 +1,8 @@
+# Program specific files
+log.txt
+report.txt
+user_test_settings.yaml
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
