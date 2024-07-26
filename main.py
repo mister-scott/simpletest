@@ -2,7 +2,7 @@ import os
 import sys
 import yaml
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 from tkinter.scrolledtext import ScrolledText
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -123,23 +123,36 @@ class TestExecutor:
     def run_all_tests(self):
         if not self.is_running_tests:
             self.is_running_tests = True
-            self.current_test_index = 0
+            self.current_test_index = 0  # Reset the index when starting a new run
             self.run_next_test()
 
     def run_next_test(self):
         if self.current_test_index < self.test_listbox.size():
-            self.run_test(self.current_test_index)
+            try:
+                self.run_test(self.current_test_index)
+            except Exception as e:
+                self.output_text.insert(tk.END, f"Error running test: {str(e)}\n")
+                self.output_text.see(tk.END)
+                self.is_running_tests = False
         else:
+            self.output_text.insert(tk.END, "All tests completed.\n")
+            self.output_text.see(tk.END)
             self.is_running_tests = False
 
     def run_test(self, index):
         test_name = self.test_listbox.get(index)
-        test_info = next(test for test in self.test_series['tests'] if test['name'] == test_name)
+        try:
+            test_info = next(test for test in self.test_series['tests'] if test['name'] == test_name)
+        except StopIteration:
+            raise Exception(f"Test '{test_name}' not found in test series.")
 
         self.output_text.insert(tk.END, f"Running test: {test_name}\n")
         self.output_text.see(tk.END)
 
-        test_module = importlib.import_module(f"tests.{test_info['file']}")
+        try:
+            test_module = importlib.import_module(f"tests.{test_info['file']}")
+        except ImportError:
+            raise Exception(f"Failed to import test module for '{test_name}'.")
         
         # Create a custom plot function for the test to use
         def plot_function(*args, **kwargs):
@@ -147,7 +160,7 @@ class TestExecutor:
         
         # Run the test in a separate thread
         self.current_test_thread = Thread(target=self.run_test_thread, args=(test_module, plot_function, index))
-        self.current_test_thread.daemon = True  # Set thread as daemon
+        self.current_test_thread.daemon = True
         self.current_test_thread.start()
 
     def run_test_thread(self, test_module, plot_function, index):
@@ -160,15 +173,30 @@ class TestExecutor:
 
         # Update test status in the listbox
         test_name = self.test_listbox.get(index)
-        status_icon = "✓" if result == "pass" else "✗" if result == "fail" else "•"
+        if result == "pass":
+            status_icon = "✓"
+        elif result == "softfail":
+            status_icon = "⚠"
+        elif result == "fail":
+            status_icon = "✗"
+        else:  # "done"
+            status_icon = "•"
+        
         self.test_listbox.delete(index)
         self.test_listbox.insert(index, f"{status_icon} {test_name}")
 
-        # Move to the next test
-        self.current_test_index += 1
-        self.run_next_test()
+        if result == "fail":
+            self.is_running_tests = False
+            messagebox.showerror("Test Failed", f"The test '{test_name}' has failed. Test series stopped.")
+        else:
+            # Move to the next test
+            self.current_test_index += 1
+            self.run_next_test()
 
-    # ... [keep all other methods unchanged] ...
+    def run_test_thread(self, test_module, plot_function, index):
+        result = test_module.maintest(self.settings, self.test_series, plot_function)
+        self.master.after(0, self.update_test_result, result, index)
+
     def check_graph_queue(self):
         try:
             args, kwargs = self.graph_queue.get_nowait()
@@ -214,5 +242,4 @@ if __name__ == "__main__":
     app = TestExecutor(root)
     app.redirect_output()
     root.mainloop()
-    # Ensure all threads are stopped
     sys.exit()
