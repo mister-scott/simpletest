@@ -22,7 +22,7 @@ OUTPUT_DIR = Path('output')
 
 # Create necessary directories if they don't exist
 if not os.path.exists(DATA_DIR):
-    os.makedirsDATA_DIR)
+    os.makedirs(DATA_DIR)
 if not os.path.exists(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
 
