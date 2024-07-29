@@ -17,12 +17,14 @@ VERSION = "1.0.0"  # Update this as needed
 FONT_SIZE = 12 
 LOGGING_ENABLED = True
 TEST_DIR = Path('tests')
+DATA_DIR = Path('testdata')
+OUTPUT_DIR = Path('output')
 
 # Create necessary directories if they don't exist
-if not os.path.exists("data"):
-    os.makedirs("data")
-if not os.path.exists("output"):
-    os.makedirs("output")
+if not os.path.exists(DATA_DIR):
+    os.makedirsDATA_DIR)
+if not os.path.exists(OUTPUT_DIR):
+    os.makedirs(OUTPUT_DIR)
 
 def get_font(size_adjustment=0, weight="normal"):
     return ("TkDefaultFont", FONT_SIZE + size_adjustment, weight)
@@ -204,6 +206,11 @@ class TestExecutor:
         if os.path.exists(TEST_DIR/'user_test_settings.yaml'):
             with open(TEST_DIR/'user_test_settings.yaml', 'r') as f:
                 user_settings = yaml.safe_load(f)
+    self.settings.update(
+        {'data_dir':DATA_DIR,
+        'output_dir':OUTPUT_DIR
+        'test_dir':TEST_DIR}
+    )
                 self.settings.update(user_settings)
 
     def set_stop_test_series(self):
