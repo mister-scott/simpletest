@@ -70,6 +70,7 @@ Adjust settings as needed through the settings menu.
 * VERSION: Current version of the application.
 * FONT_SIZE: Global font size for the GUI.
 * LOGGING_ENABLED: When True, writes console output to output/log.txt.
+* TEST_DIR: Specify the location of the tests directory.
 
 ### Adding New Tests
 
