@@ -349,8 +349,14 @@ class TestExecutor:
 
         try:
             test_module = importlib.import_module(f"tests.{test_info['file']}")
-        except ImportError:
-            raise Exception(f"Failed to import test module for '{test_name}'.")
+        except:
+            try:
+                spec = importlib.util.spec_from_file_location(f"tests.{test_info['file']}", TEST_DIR/f"{test_info['file']}.py")
+                test_module = importlib.util.module_from_spec(spec)
+                sys.modules[f"test.{test_info['file']}"] = test_module
+                spec.loader.exec_module(test_module)
+            except ImportError:
+                raise Exception(f"Failed to import test module for '{test_name}'.")
         
         def plot_function(*args, **kwargs):
             self.graph_queue.put((args, kwargs))
