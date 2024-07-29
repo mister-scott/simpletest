@@ -206,12 +206,13 @@ class TestExecutor:
         if os.path.exists(TEST_DIR/'user_test_settings.yaml'):
             with open(TEST_DIR/'user_test_settings.yaml', 'r') as f:
                 user_settings = yaml.safe_load(f)
-    self.settings.update(
-        {'data_dir':DATA_DIR,
-        'output_dir':OUTPUT_DIR
-        'test_dir':TEST_DIR}
-    )
                 self.settings.update(user_settings)
+
+        self.settings.update(
+            {'data_dir':DATA_DIR,
+            'output_dir':OUTPUT_DIR,
+            'test_dir':TEST_DIR}
+        )
 
     def set_stop_test_series(self):
         if self.is_running_tests:
