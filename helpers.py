@@ -7,4 +7,4 @@ class DynamicClass:
         self.__init__(data_dict)
 
     def index(self):
-        return [attr for attr in dir(self) if not callable(get attr(self, attr)) and not attr.startswith("__")]
+        return [attr for attr in dir(self) if not callable(getattr(self, attr)) and not attr.startswith("__")]
