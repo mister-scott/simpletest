@@ -2,6 +2,7 @@
 log.txt
 report.txt
 user_test_settings.yaml
+.lastrun.yaml
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
