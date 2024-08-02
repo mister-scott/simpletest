@@ -2,7 +2,7 @@ import os
 import sys
 import yaml
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 from tkinter.scrolledtext import ScrolledText
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -13,19 +13,13 @@ from threading import Thread
 import queue
 from pathlib import Path
 
-VERSION = "1.0.0"  # Update this as needed
+VERSION = "1.1.0"  # Update this as needed
 FONT_SIZE = 12 
 LOGGING_ENABLED = True
-TEST_DIR = Path('tests')
-DATA_DIR = Path('testdata')
-OUTPUT_DIR = Path('output')
+
+
 
 # Create necessary directories if they don't exist
-if not os.path.exists(DATA_DIR):
-    os.makedirs(DATA_DIR)
-if not os.path.exists(OUTPUT_DIR):
-    os.makedirs(OUTPUT_DIR)
-
 def get_font(size_adjustment=0, weight="normal"):
     return ("TkDefaultFont", FONT_SIZE + size_adjustment, weight)
 
@@ -84,10 +78,24 @@ class TestExecutor:
 
         self.master.protocol("WM_DELETE_WINDOW", self.on_closing)
 
+        # Default directories
+        self.default_test_directory =  Path('TESTS')
+        self.default_output_directory = Path('WORKING')
+        self.default_working_directory = Path('OUTPUT')
+        self.test_directory = False
+        self.output_directory = False
+        self.working_directory = False
+        
+        self.lastrun_path = Path('.lastrun.yaml')
+        self.lastrun = {}
+
+        self.load_lastrun()
         self.create_menu()
         self.create_gui()
-        self.load_settings()
-        self.load_test_series()
+        self.set_test_directory() 
+        # self.initialize_test() # Called by set_test_directory
+        # self.load_settings() # Now called by initialize_test
+        # self.load_test_series() # Now called by initialize_test
         
         self.graph_queue = queue.Queue()
         self.master.after(100, self.check_graph_queue)
@@ -199,20 +207,111 @@ class TestExecutor:
         else:
             self.timer_label.config(text="")
 
-    def load_settings(self):
-        with open(TEST_DIR/'test_settings.yaml', 'r') as f:
-            self.settings = yaml.safe_load(f)
+    def save_lastrun(self,**kwargs):
+        self.lastrun.update(kwargs)
+        with open(self.lastrun_path, 'w') as f:
+            yaml.dump(self.lastrun, f)
 
-        if os.path.exists(TEST_DIR/'user_test_settings.yaml'):
-            with open(TEST_DIR/'user_test_settings.yaml', 'r') as f:
+    def load_lastrun(self):
+        if self.lastrun_path.exists():
+            with open(self.lastrun_path, 'r') as f:
+                    self.lastrun = yaml.safe_load(f)
+        else:
+            self.lastrun = {}
+            self.save_lastrun()
+
+    def set_working_directory(self,directory=False):
+        specified_working_directory = directory if directory else self.settings.get('working_directory',False)
+        self.working_directory = False
+        if bool(specified_working_directory):
+            try:
+                os.makedirs(self.settings['working_directory'],exist_ok=True)
+                if Path(self.settings['working_directory']).exists():
+                    self.working_directory = Path(self.settings['working_directory'])
+                    print(f'Working directory: {self.working_directory.absolute()}')
+                else:
+                    raise Exception(f'Unable to open {specified_working_directory}.')
+            except Exception as e:
+                print(e)
+        if not self.working_directory:
+            print(f'Unable to access working directory!')
+    
+    def set_output_directory(self,directory=False):
+        specified_output_directory = directory if directory else self.settings.get('output_directory',False)
+        self.output_directory = False
+        if bool(specified_output_directory):
+            try:
+                os.makedirs(self.settings['output_directory'],exist_ok=True)
+                if Path(self.settings['output_directory']).exists():
+                    self.output_directory = Path(self.settings['output_directory'])
+                    print(f'Working directory: {self.output_directory.absolute()}')
+                else:
+                    raise Exception(f'Unable to open {specified_output_directory}.')
+            except Exception as e:
+                print(e)
+        if not self.output_directory:
+            print(f'Unable to access output directory!')
+
+    def set_test_directory(self,directory=False):
+        if directory:
+            specified_test_directory = directory
+        elif self.lastrun.get('test_directory',False):
+            specified_test_directory = self.lastrun['test_directory']
+        else:
+            specified_test_directory = self.default_test_directory
+        
+        self.test_directory = False
+        
+        if bool(specified_test_directory):
+            try:
+                if Path(specified_test_directory).exists():
+                    self.test_directory = Path(specified_test_directory)
+                    print(f'Test directory:{self.test_directory.absolute()}')
+                    print(f'Intializing Test Series...')
+                    self.initialize_test()
+                    self.save_lastrun(test_directory=self.settings['test_directory'])
+                else:
+                    raise Exception(f'Unable to open {specified_test_directory}.')
+            except Exception as e:
+                print(f'Unable to open {specified_test_directory}: {e}')
+        if not self.test_directory:
+            selected_path = filedialog.askdirectory(title='Select a test-series directory',mustexist=True)
+            if selected_path:
+                self.set_test_directory(selected_path)
+            else:
+                exit()
+
+    def load_settings(self):
+        if (self.test_directory/'test_settings.yaml').exists():
+            with open(self.test_directory/'test_settings.yaml', 'r') as f:
+                try: 
+                    _settings = yaml.safe_load(f)
+                    if _settings.get('test_directory',False):
+                        del _settings['test_directory']
+                        print('Setting "test_directory" is a reserved parameter, and was ignored.')
+                    self.settings = _settings
+                except:
+                    message=f"WARNING: Unable to locate test_settings.yaml! Tests which depend on test_settings.yaml may misbehave!"
+                    message+= f"\n{Path(self.test_directory/'test_settings.yaml').absolute()}"
+                    #messagebox.showerror(message)
+                    print(message)
+
+        user_test_settings_override = self.test_directory/'user_test_settings_override.yaml'
+        if user_test_settings_override.exists():
+            with open(user_test_settings_override, 'r') as f:
                 user_settings = yaml.safe_load(f)
                 self.settings.update(user_settings)
 
-        self.settings.update(
-            {'data_dir':DATA_DIR,
-            'output_dir':OUTPUT_DIR,
-            'test_dir':TEST_DIR}
-        )
+        self.settings['output_directory'] = self.settings.get('output_directory',self.default_output_directory)
+        self.settings['working_directory'] = self.settings.get('working_directory',self.default_working_directory)
+        self.settings['test_directory'] = self.test_directory
+        
+        self.set_output_directory()
+        self.set_working_directory()
+
+    def initialize_test(self):
+        self.load_settings()
+        self.load_test_series()
 
     def set_stop_test_series(self):
         if self.is_running_tests:
@@ -222,7 +321,21 @@ class TestExecutor:
 
 
     def load_test_series(self):
-        with open(TEST_DIR/'test_series.yaml', 'r') as f:
+        self.test_series_loaded = False
+        while not self.test_series_loaded:
+            if Path(self.test_directory/'test_settings.yaml').exists():
+                with open(self.test_directory/'test_settings.yaml', 'r') as f:
+                    try: 
+                        self.settings = yaml.safe_load(f)
+                        self.test_series_loaded=True
+                    except:
+                        messagebox.showerror(f"Unable to locate test_settings.yaml!\n{Path(self.test_directory/'test_settings.yaml').absolute()}")
+                        self.set_test_directory(filedialog.askdirectory(title='Select a test-series directory',mustexist=True))
+            else:
+                messagebox.showerror(f"Unable to locate test_settings.yaml!\n{Path(self.test_directory/'test_settings.yaml').absolute()}")
+                self.set_test_directory(filedialog.askdirectory(title='Select a test-series directory',mustexist=True))
+
+        with open(self.test_directory/'test_series.yaml', 'r') as f:
             self.test_series = yaml.safe_load(f)
 
         self.test_items = []
@@ -232,7 +345,6 @@ class TestExecutor:
             item.pack(fill=tk.X, padx=5, pady=2)
             self.test_items.append(item)
             
-
         self.test_canvas.configure(scrollregion=self.test_canvas.bbox("all"))
 
     def on_test_select(self, index):
@@ -362,7 +474,7 @@ class TestExecutor:
             test_module = importlib.import_module(f"tests.{test_info['file']}")
         except:
             try:
-                spec = importlib.util.spec_from_file_location(f"tests.{test_info['file']}", TEST_DIR/f"{test_info['file']}.py")
+                spec = importlib.util.spec_from_file_location(f"tests.{test_info['file']}", self.test_directory/f"{test_info['file']}.py")
                 test_module = importlib.util.module_from_spec(spec)
                 sys.modules[f"test.{test_info['file']}"] = test_module
                 spec.loader.exec_module(test_module)
@@ -377,7 +489,7 @@ class TestExecutor:
         self.current_test_thread.start()
 
     def run_test_thread(self, test_module, plot_function, index, test_args):
-        result = test_module.maintest(self.settings, self.test_series, plot_function, **test_args)
+        result = test_module.maintest(self.settings, self.test_items, plot_function, **test_args)
         self.master.after(0, self.update_test_result, result, index)
 
     def update_test_result(self, result, index):
