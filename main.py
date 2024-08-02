@@ -36,7 +36,7 @@ class TestListItem(tk.Frame):
         self.index = index
         self.on_select_callback = on_select_callback
         self.status = "pending"
-
+        self.optional_args = {}
         self.status_label = tk.Label(self, text="⃝", width=2, font=get_font())
         self.status_label.pack(side=tk.LEFT)
         self.name_label = tk.Label(self, text=test_name, anchor="w",  font=get_font())
@@ -228,8 +228,10 @@ class TestExecutor:
         self.test_items = []
         for index, test in enumerate(self.test_series['tests']):
             item = TestListItem(self.test_inner_frame, test['name'], index, self.on_test_select)
+            item.optional_args = test.get('args',{})
             item.pack(fill=tk.X, padx=5, pady=2)
             self.test_items.append(item)
+            
 
         self.test_canvas.configure(scrollregion=self.test_canvas.bbox("all"))
 
@@ -341,6 +343,7 @@ class TestExecutor:
     def run_test(self, index):
         test_item = self.test_items[index]
         test_name = test_item.test_name
+        test_args = test_item.optional_args
         self.update_status(f"Test [{test_name}] running")
         
         if self.start_time is None:
@@ -369,12 +372,12 @@ class TestExecutor:
         def plot_function(*args, **kwargs):
             self.graph_queue.put((args, kwargs))
         
-        self.current_test_thread = Thread(target=self.run_test_thread, args=(test_module, plot_function, index))
+        self.current_test_thread = Thread(target=self.run_test_thread, args=(test_module, plot_function, index, test_args))
         self.current_test_thread.daemon = True
         self.current_test_thread.start()
 
-    def run_test_thread(self, test_module, plot_function, index):
-        result = test_module.maintest(self.settings, self.test_series, plot_function)
+    def run_test_thread(self, test_module, plot_function, index, test_args):
+        result = test_module.maintest(self.settings, self.test_series, plot_function, **test_args)
         self.master.after(0, self.update_test_result, result, index)
 
     def update_test_result(self, result, index):
