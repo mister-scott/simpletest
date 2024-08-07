@@ -269,7 +269,7 @@ class TestExecutor:
                     print(f'Test directory:{self.test_directory.absolute()}')
                     print(f'Intializing Test Series...')
                     self.initialize_test()
-                    self.save_lastrun(test_directory=self.settings['test_directory'])
+                    self.save_lastrun(test_directory=str(self.test_directory))
                 else:
                     raise Exception(f'Unable to open {specified_test_directory}.')
             except Exception as e:
@@ -304,7 +304,7 @@ class TestExecutor:
 
         self.settings['output_directory'] = self.settings.get('output_directory',self.default_output_directory)
         self.settings['working_directory'] = self.settings.get('working_directory',self.default_working_directory)
-        self.settings['test_directory'] = self.test_directory
+        self.settings['test_directory'] = str(self.test_directory)
         
         self.set_output_directory()
         self.set_working_directory()
@@ -322,18 +322,6 @@ class TestExecutor:
 
     def load_test_series(self):
         self.test_series_loaded = False
-        while not self.test_series_loaded:
-            if Path(self.test_directory/'test_settings.yaml').exists():
-                with open(self.test_directory/'test_settings.yaml', 'r') as f:
-                    try: 
-                        self.settings = yaml.safe_load(f)
-                        self.test_series_loaded=True
-                    except:
-                        messagebox.showerror(f"Unable to locate test_settings.yaml!\n{Path(self.test_directory/'test_settings.yaml').absolute()}")
-                        self.set_test_directory(filedialog.askdirectory(title='Select a test-series directory',mustexist=True))
-            else:
-                messagebox.showerror(f"Unable to locate test_settings.yaml!\n{Path(self.test_directory/'test_settings.yaml').absolute()}")
-                self.set_test_directory(filedialog.askdirectory(title='Select a test-series directory',mustexist=True))
 
         with open(self.test_directory/'test_series.yaml', 'r') as f:
             self.test_series = yaml.safe_load(f)
