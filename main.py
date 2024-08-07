@@ -655,11 +655,11 @@ class TestExecutor:
         def plot_function(*args, **kwargs):
             self.graph_queue.put((args, kwargs))
         
-        self.current_test_thread = Thread(target=self.run_test_thread, args=(test_module, plot_function, index, test_args))
+        self.current_test_thread = Thread(target=self.run_test_thread, args=(test_module, plot_function, index, test_name, test_args))
         self.current_test_thread.daemon = True
         self.current_test_thread.start()
 
-    def run_test_thread(self, test_module: Any, plot_function: Callable, index: int, test_args: Dict[str, Any]) -> None:
+    def run_test_thread(self, test_module: Any, plot_function: Callable, index: int, test_name: str, test_args: Dict[str, Any]) -> None:
         """
         Run a test in a separate thread.
 
@@ -668,6 +668,7 @@ class TestExecutor:
         :param index: Index of the test
         :param test_args: Additional arguments for the test
         """
+        test_args['_test_name'] = test_name
         result = test_module.maintest(self.settings, self.test_items, plot_function, **test_args)
         self.master.after(0, self.update_test_result, result, index)
 
