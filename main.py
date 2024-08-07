@@ -13,6 +13,9 @@ from threading import Thread
 import queue
 from pathlib import Path
 from typing import Dict, List, Any, Callable, Optional, Tuple
+import tempfile
+import zipfile
+import shutil
 
 VERSION = "1.2.0"  # Updated version number
 FONT_SIZE = 12 
@@ -157,6 +160,7 @@ class TestExecutor:
 
         test_series_menu = tk.Menu(menubar, tearoff=0)
         test_series_menu.add_command(label="Open Test Series...", command=self.open_test_series)
+        test_series_menu.add_command(label="Open Test Series from ZIP...", command=self.open_test_series_zip)
         menubar.add_cascade(label="Test Series", menu=test_series_menu)
 
     def create_gui(self) -> None:
@@ -324,41 +328,67 @@ class TestExecutor:
         if not self.output_directory:
             print(f'Unable to access output directory!')
 
-    def set_test_directory(self, directory: Optional[str] = None) -> None:
+    def set_test_directory(self, test_series_file: Optional[str] = None) -> None:
         """
         Set the test directory containing the test series.
 
-        :param directory: Directory path to set as test directory
+        :param test_series_file: Path to the test_series.yaml file
         """
-        if directory:
+        if test_series_file:
             self.clear_module_cache()
-            specified_test_directory = directory
-        elif self.lastrun.get('test_directory', False):
-            specified_test_directory = self.lastrun['test_directory']
+            specified_test_series_file = test_series_file
+        elif self.lastrun.get('test_series_file', False):
+            specified_test_series_file = self.lastrun['test_series_file']
         else:
-            specified_test_directory = self.default_test_directory
+            specified_test_series_file = None
         
-        self.test_directory = False
+        self.test_directory = None
         
-        if bool(specified_test_directory):
+        if specified_test_series_file:
             try:
-                if Path(specified_test_directory).exists():
-                    self.test_directory = Path(specified_test_directory)
+                if specified_test_series_file.endswith('.zip'):
+                    # Handle zip file
+                    with tempfile.TemporaryDirectory() as temp_dir:
+                        with zipfile.ZipFile(specified_test_series_file, 'r') as zip_ref:
+                            zip_ref.extractall(temp_dir)
+                        
+                        test_series_yaml = self.find_test_series_yaml(temp_dir)
+                        if test_series_yaml:
+                            zip_name = os.path.splitext(os.path.basename(specified_test_series_file))[0]
+                            new_test_dir = os.path.join(self.default_test_directory, zip_name)
+                            if os.path.exists(new_test_dir):
+                                shutil.rmtree(new_test_dir)
+                            shutil.copytree(os.path.dirname(test_series_yaml), new_test_dir)
+                            self.test_directory = Path(new_test_dir)
+                        else:
+                            raise Exception(f'The ZIP file does not contain a valid test series.')
+                else:
+                    # Handle directory
+                    test_dir = os.path.dirname(specified_test_series_file)
+                    if self.validate_test_series(test_dir):
+                        self.test_directory = Path(test_dir)
+                    else:
+                        raise Exception(f'The directory does not contain a valid test series.')
+                
+                if self.test_directory:
                     print(f'Test directory: {self.test_directory.absolute()}')
                     print(f'Initializing Test Series...')
                     self.initialize_test()
-                    self.save_lastrun(test_directory=str(self.test_directory))
-                else:
-                    raise Exception(f'Unable to open {specified_test_directory}.')
+                    self.save_lastrun(test_series_file=str(specified_test_series_file))
             except Exception as e:
-                print(f'Unable to open {specified_test_directory}: {e}')
+                print(f'Unable to open test series: {e}')
+                self.test_directory = None
+
         if not self.test_directory:
-            selected_path = filedialog.askdirectory(title='Select a test-series directory', mustexist=True)
-            if selected_path:
-                self.set_test_directory(selected_path)
+            selected_file = filedialog.askopenfilename(
+                title='Select the test_series.yaml file',
+                filetypes=[("YAML files", "*.yaml *.yml"), ("ZIP files", "*.zip"), ("All files", "*.*")]
+            )
+            if selected_file:
+                self.set_test_directory(selected_file)
             else:
                 exit()
-
+                
     def clear_module_cache(self) -> None:
         """
         Clear the cache of loaded test modules.
@@ -737,15 +767,49 @@ class TestExecutor:
             else:
                 messagebox.showerror("Invalid Test Series", "The selected directory does not contain a valid test series.")
 
+    def open_test_series_zip(self) -> None:
+        zip_file = filedialog.askopenfilename(
+            title="Select Test Series ZIP File",
+            filetypes=[("ZIP files", "*.zip")]
+        )
+        if zip_file:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                try:
+                    with zipfile.ZipFile(zip_file, 'r') as zip_ref:
+                        zip_ref.extractall(temp_dir)
+                    
+                    # Check if the zip contains a single directory with the test series
+                    contents = os.listdir(temp_dir)
+                    if len(contents) == 1 and os.path.isdir(os.path.join(temp_dir, contents[0])):
+                        extracted_dir = os.path.join(temp_dir, contents[0])
+                    else:
+                        extracted_dir = temp_dir
+
+                    # Validate the test series
+                    if self.validate_test_series(extracted_dir):
+                        # Copy extracted contents to a new directory in the default test directory
+                        zip_name = os.path.splitext(os.path.basename(zip_file))[0]
+                        new_test_dir = os.path.join(self.default_test_directory, zip_name)
+                        
+                        # Remove existing directory if it exists
+                        if os.path.exists(new_test_dir):
+                            shutil.rmtree(new_test_dir)
+                        
+                        shutil.copytree(extracted_dir, new_test_dir)
+                        self.reinitialize_test_series(new_test_dir)
+                    else:
+                        messagebox.showerror("Invalid Test Series", "The ZIP file does not contain a valid test series.")
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to open ZIP file: {str(e)}")
+
     def validate_test_series(self, directory: str) -> bool:
         """
         Validate if a directory contains a valid test series.
 
         :param directory: Directory to validate
         :return: True if the directory contains a valid test series, False otherwise
-        """        
-        return Path(directory).is_dir() and (Path(directory) / 'test_series.yaml').exists()
-
+        """
+        return os.path.isfile(os.path.join(directory, 'test_series.yaml'))
 
     def reinitialize_test_series(self, new_test_directory: str) -> None:
         """
@@ -771,6 +835,20 @@ class TestExecutor:
 
         # Update status
         self.update_status("New test series loaded")
+
+    def find_test_series_yaml(self, directory: str) -> Optional[str]:
+        """
+        Find the test_series.yaml file in the given directory or its subdirectories.
+
+        :param directory: Directory to search in
+        :return: Path to test_series.yaml if found, None otherwise
+        """
+        for root, dirs, files in os.walk(directory):
+            if 'test_series.yaml' in files:
+                return os.path.join(root, 'test_series.yaml')
+        return None
+
+
 
 if __name__ == "__main__":
     root = tk.Tk()
