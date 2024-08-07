@@ -13,13 +13,10 @@ from threading import Thread
 import queue
 from pathlib import Path
 
-VERSION = "1.1.0"  # Update this as needed
+VERSION = "1.2.0"  # Updated version number
 FONT_SIZE = 12 
 LOGGING_ENABLED = True
 
-
-
-# Create necessary directories if they don't exist
 def get_font(size_adjustment=0, weight="normal"):
     return ("TkDefaultFont", FONT_SIZE + size_adjustment, weight)
 
@@ -69,17 +66,17 @@ class TestExecutor:
         # Apply default font to the root window
         default_font = get_font()
         self.master.option_add("*Font", default_font)
+        self.loaded_modules = {}
         
         # Create a custom style for ttk widgets
         self.style = ttk.Style()
         self.style.configure("TButton", font=get_font())
         self.style.configure("TLabel", font=get_font())
 
-
         self.master.protocol("WM_DELETE_WINDOW", self.on_closing)
 
         # Default directories
-        self.default_test_directory =  Path('TESTS')
+        self.default_test_directory = Path('TESTS')
         self.default_output_directory = Path('WORKING')
         self.default_working_directory = Path('OUTPUT')
         self.test_directory = False
@@ -93,9 +90,6 @@ class TestExecutor:
         self.create_menu()
         self.create_gui()
         self.set_test_directory() 
-        # self.initialize_test() # Called by set_test_directory
-        # self.load_settings() # Now called by initialize_test
-        # self.load_test_series() # Now called by initialize_test
         
         self.graph_queue = queue.Queue()
         self.master.after(100, self.check_graph_queue)
@@ -106,9 +100,7 @@ class TestExecutor:
         self.current_test_thread = None
         self.selected_test_index = None
 
-        # self.create_status_bar()
         self.start_time = None
-
 
     def create_menu(self):
         menubar = tk.Menu(self.master)
@@ -117,6 +109,10 @@ class TestExecutor:
         file_menu = tk.Menu(menubar, tearoff=0)
         file_menu.add_command(label="Settings", command=self.open_settings)
         menubar.add_cascade(label="File", menu=file_menu)
+
+        test_series_menu = tk.Menu(menubar, tearoff=0)
+        test_series_menu.add_command(label="Open Test Series...", command=self.open_test_series)
+        menubar.add_cascade(label="Test Series", menu=test_series_menu)
 
     def create_gui(self):
         # Main frame
@@ -168,7 +164,6 @@ class TestExecutor:
         right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
 
         # Text output section
-        # Example of using custom font sizes
         self.output_text = ScrolledText(right_frame, height=20, font=get_font())
         self.output_text.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
@@ -184,7 +179,7 @@ class TestExecutor:
         self.status_bar = tk.Frame(self.master)
         self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
 
-        self.version_label = tk.Label(self.status_bar, text=f"v{VERSION}", font=get_font(-1))  # Slightly smaller font
+        self.version_label = tk.Label(self.status_bar, text=f"v{VERSION}", font=get_font(-1))
         self.version_label.pack(side=tk.LEFT, padx=5)
 
         self.status_label = tk.Label(self.status_bar, text="Ready", font=get_font())
@@ -244,7 +239,7 @@ class TestExecutor:
                 os.makedirs(self.settings['output_directory'],exist_ok=True)
                 if Path(self.settings['output_directory']).exists():
                     self.output_directory = Path(self.settings['output_directory'])
-                    print(f'Working directory: {self.output_directory.absolute()}')
+                    print(f'Output directory: {self.output_directory.absolute()}')
                 else:
                     raise Exception(f'Unable to open {specified_output_directory}.')
             except Exception as e:
@@ -252,10 +247,11 @@ class TestExecutor:
         if not self.output_directory:
             print(f'Unable to access output directory!')
 
-    def set_test_directory(self,directory=False):
+    def set_test_directory(self, directory=False):
         if directory:
+            self.clear_module_cache()
             specified_test_directory = directory
-        elif self.lastrun.get('test_directory',False):
+        elif self.lastrun.get('test_directory', False):
             specified_test_directory = self.lastrun['test_directory']
         else:
             specified_test_directory = self.default_test_directory
@@ -266,8 +262,8 @@ class TestExecutor:
             try:
                 if Path(specified_test_directory).exists():
                     self.test_directory = Path(specified_test_directory)
-                    print(f'Test directory:{self.test_directory.absolute()}')
-                    print(f'Intializing Test Series...')
+                    print(f'Test directory: {self.test_directory.absolute()}')
+                    print(f'Initializing Test Series...')
                     self.initialize_test()
                     self.save_lastrun(test_directory=str(self.test_directory))
                 else:
@@ -275,11 +271,17 @@ class TestExecutor:
             except Exception as e:
                 print(f'Unable to open {specified_test_directory}: {e}')
         if not self.test_directory:
-            selected_path = filedialog.askdirectory(title='Select a test-series directory',mustexist=True)
+            selected_path = filedialog.askdirectory(title='Select a test-series directory', mustexist=True)
             if selected_path:
                 self.set_test_directory(selected_path)
             else:
                 exit()
+
+    def clear_module_cache(self):
+        for module_name in list(sys.modules.keys()):
+            if module_name.startswith('tests.'):
+                del sys.modules[module_name]
+        self.loaded_modules.clear()
 
     def load_settings(self):
         if (self.test_directory/'test_settings.yaml').exists():
@@ -293,7 +295,6 @@ class TestExecutor:
                 except:
                     message=f"WARNING: Unable to locate test_settings.yaml! Tests which depend on test_settings.yaml may misbehave!"
                     message+= f"\n{Path(self.test_directory/'test_settings.yaml').absolute()}"
-                    #messagebox.showerror(message)
                     print(message)
 
         user_test_settings_override = self.test_directory/'user_test_settings_override.yaml'
@@ -319,12 +320,15 @@ class TestExecutor:
             self.output_text.insert(tk.END, f"\n! Discontinuing test progression !\n - Test series will stop at conclusion of present test.\n\n")
             self.output_text.see(tk.END)
 
-
     def load_test_series(self):
         self.test_series_loaded = False
 
         with open(self.test_directory/'test_series.yaml', 'r') as f:
             self.test_series = yaml.safe_load(f)
+
+        # Clear existing test items
+        for item in self.test_items if hasattr(self, 'test_items') else []:
+            item.destroy()
 
         self.test_items = []
         for index, test in enumerate(self.test_series['tests']):
@@ -420,7 +424,7 @@ class TestExecutor:
 
     def save_settings(self, entries, settings_window):
         user_settings = {k: v.get() for k, v in entries.items()}
-        with open('tests/user_test_settings.yaml', 'w') as f:
+        with open(self.test_directory/'user_test_settings_override.yaml', 'w') as f:
             yaml.dump(user_settings, f)
         self.settings.update(user_settings)
         settings_window.destroy()
@@ -459,15 +463,12 @@ class TestExecutor:
         self.output_text.see(tk.END)
 
         try:
-            test_module = importlib.import_module(f"tests.{test_info['file']}")
-        except:
-            try:
-                spec = importlib.util.spec_from_file_location(f"tests.{test_info['file']}", self.test_directory/f"{test_info['file']}.py")
-                test_module = importlib.util.module_from_spec(spec)
-                sys.modules[f"test.{test_info['file']}"] = test_module
-                spec.loader.exec_module(test_module)
-            except Exception as e:
-                raise Exception(f"Failed to import test module for '{test_name}': {e}")
+            module_path = self.test_directory / f"{test_info['file']}.py"
+            spec = importlib.util.spec_from_file_location(f"tests.{test_info['file']}", module_path)
+            test_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(test_module)
+        except Exception as e:
+            raise Exception(f"Failed to import test module for '{test_name}': {e}")
         
         def plot_function(*args, **kwargs):
             self.graph_queue.put((args, kwargs))
@@ -494,7 +495,7 @@ class TestExecutor:
             self.start_time = None
             messagebox.showerror("Test Failed", f"The test '{test_item.test_name}' has failed. Test series stopped.")
         elif self.stop_test_series:
-            self.stop_test_series=False
+            self.stop_test_series = False
             self.is_running_tests = False
             self.test_running_indicator.config(fg="gray")
             self.output_text.insert(tk.END, f"Test series stopped.\n\n")
@@ -531,8 +532,9 @@ class TestExecutor:
 
     def redirect_output(self):
         class StdoutRedirector:
-            def __init__(self, text_widget):
+            def __init__(self, text_widget, output_directory):
                 self.text_widget = text_widget
+                self.output_directory = output_directory
 
             def write(self, string):
                 self.text_widget.insert(tk.END, string)
@@ -542,13 +544,13 @@ class TestExecutor:
                     if len(logstring.strip()) > 1:
                         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         logstring = f"{timestamp}: {logstring}\n"
-                        with open('output/log.txt', 'a') as f:
+                        with open(self.output_directory/'log.txt', 'a') as f:
                             f.write(logstring)
 
             def flush(self):
                 pass
 
-        sys.stdout = StdoutRedirector(self.output_text)
+        sys.stdout = StdoutRedirector(self.output_text, self.output_directory)
 
     def on_closing(self):
         if self.is_running_tests:
@@ -558,6 +560,37 @@ class TestExecutor:
                 self.master.quit()
         else:
             self.master.quit()
+
+    def open_test_series(self):
+        new_test_directory = filedialog.askdirectory(title="Select Test Series Directory")
+        if new_test_directory:
+            if self.validate_test_series(new_test_directory):
+                self.reinitialize_test_series(new_test_directory)
+            else:
+                messagebox.showerror("Invalid Test Series", "The selected directory does not contain a valid test series.")
+
+    def validate_test_series(self, directory):
+        return Path(directory).is_dir() and (Path(directory) / 'test_series.yaml').exists()
+
+    def reinitialize_test_series(self, new_test_directory):
+        # Clear existing data
+        self.output_text.delete('1.0', tk.END)
+        self.ax.clear()
+        self.canvas.draw()
+
+        # Clear module cache
+        self.clear_module_cache()
+
+        # Clear sys.modules of test modules
+        for module_name in list(sys.modules.keys()):
+            if module_name.startswith('tests.'):
+                del sys.modules[module_name]
+
+        # Set new test directory and reinitialize
+        self.set_test_directory(new_test_directory)
+
+        # Update status
+        self.update_status("New test series loaded")
 
 if __name__ == "__main__":
     root = tk.Tk()
