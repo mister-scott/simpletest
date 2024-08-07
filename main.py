@@ -7,102 +7,147 @@ from tkinter.scrolledtext import ScrolledText
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import importlib
-import time
-from datetime import datetime, timedelta
+import importlib.util
+from datetime import datetime
 from threading import Thread
 import queue
 from pathlib import Path
+from typing import Dict, List, Any, Callable, Optional, Tuple
 
 VERSION = "1.2.0"  # Updated version number
 FONT_SIZE = 12 
 LOGGING_ENABLED = True
 
-def get_font(size_adjustment=0, weight="normal"):
+def get_font(size_adjustment: int = 0, weight: str = "normal") -> Tuple[str, int, str]:
+    """
+    Return a font tuple for Tkinter widgets.
+    
+    :param size_adjustment: Adjustment to the base font size
+    :param weight: Font weight (e.g., "normal", "bold")
+    :return: Font tuple
+    """
     return ("TkDefaultFont", FONT_SIZE + size_adjustment, weight)
 
 class TestListItem(tk.Frame):
-    def __init__(self, master, test_name, index, on_select_callback, **kwargs):
+    """
+    Represents a single test item in the test list GUI.
+    """
+
+    def __init__(self, master: tk.Widget, test_name: str, index: int, on_select_callback: Callable[[int], None], **kwargs: Any):
+        """
+        Initialize a TestListItem.
+
+        :param master: Parent widget
+        :param test_name: Name of the test
+        :param index: Index of the test in the list
+        :param on_select_callback: Function to call when this item is selected
+        :param kwargs: Additional keyword arguments for the Frame
+        """
         super().__init__(master, **kwargs)
-        self.test_name = test_name
-        self.index = index
-        self.on_select_callback = on_select_callback
-        self.status = "pending"
-        self.optional_args = {}
-        self.status_label = tk.Label(self, text="⃝", width=2, font=get_font())
+        self.test_name: str = test_name
+        self.index: int = index
+        self.on_select_callback: Callable[[int], None] = on_select_callback
+        self.status: str = "pending"
+        self.optional_args: Dict[str, Any] = {}
+        self.status_label: tk.Label = tk.Label(self, text="⃝", width=2, font=get_font())
         self.status_label.pack(side=tk.LEFT)
-        self.name_label = tk.Label(self, text=test_name, anchor="w",  font=get_font())
+        self.name_label: tk.Label = tk.Label(self, text=test_name, anchor="w",  font=get_font())
         self.name_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
         
         self.bind("<Button-1>", self.on_click)
         self.name_label.bind("<Button-1>", self.on_click)
         
-        # Initialize with deselected state
         self.deselect()
         
-    def set_status(self, status):
+    def set_status(self, status: str) -> None:
+        """
+        Set the status of the test item and update the status icon.
+
+        :param status: New status of the test item
+        """
         self.status = status
         status_icons = {"pass": "✓", "softfail": "⚠", "fail": "✗", "done": "•", "pending": "-"}
         self.status_label.config(text=status_icons.get(status, "•"))
         
-    def on_click(self, event):
+    def on_click(self, event: tk.Event) -> None:
+        """
+        Handle click events on the test item.
+
+        :param event: Tkinter event object
+        """
         self.on_select_callback(self.index)
         
-    def select(self):
+    def select(self) -> None:
+        """
+        Visually select this test item.
+        """
         self.config(bg="lightblue")
         self.name_label.config(bg="lightblue")
         self.status_label.config(bg="lightblue")
         
-    def deselect(self):
+    def deselect(self) -> None:
+        """
+        Visually deselect this test item.
+        """
         self.config(bg="white")
         self.name_label.config(bg="white")
         self.status_label.config(bg="white")
 
 class TestExecutor:
-    def __init__(self, master):
-        self.master = master
+    """
+    Main class for the test execution GUI application.
+    """
+
+    def __init__(self, master: tk.Tk):
+        """
+        Initialize the TestExecutor.
+
+        :param master: Root Tkinter window
+        """
+        self.master: tk.Tk = master
         self.master.title("SimpleTest")
         self.master.geometry("1000x800")
         
-        # Apply default font to the root window
         default_font = get_font()
         self.master.option_add("*Font", default_font)
-        self.loaded_modules = {}
+        self.loaded_modules: Dict[str, Any] = {}
         
-        # Create a custom style for ttk widgets
-        self.style = ttk.Style()
+        self.style: ttk.Style = ttk.Style()
         self.style.configure("TButton", font=get_font())
         self.style.configure("TLabel", font=get_font())
 
         self.master.protocol("WM_DELETE_WINDOW", self.on_closing)
 
-        # Default directories
-        self.default_test_directory = Path('TESTS')
-        self.default_output_directory = Path('WORKING')
-        self.default_working_directory = Path('OUTPUT')
-        self.test_directory = False
-        self.output_directory = False
-        self.working_directory = False
+        self.default_test_directory: Path = Path('TESTS')
+        self.default_output_directory: Path = Path('WORKING')
+        self.default_working_directory: Path = Path('OUTPUT')
+        self.test_directory: Optional[Path] = None
+        self.output_directory: Optional[Path] = None
+        self.working_directory: Optional[Path] = None
         
-        self.lastrun_path = Path('.lastrun.yaml')
-        self.lastrun = {}
+        self.lastrun_path: Path = Path('.lastrun.yaml')
+        self.lastrun: Dict[str, Any] = {}
 
         self.load_lastrun()
         self.create_menu()
         self.create_gui()
         self.set_test_directory() 
         
-        self.graph_queue = queue.Queue()
+        self.graph_queue: queue.Queue = queue.Queue()
         self.master.after(100, self.check_graph_queue)
         
-        self.current_test_index = 0
-        self.is_running_tests = False
-        self.stop_test_series = False
-        self.current_test_thread = None
-        self.selected_test_index = None
+        self.current_test_index: int = 0
+        self.is_running_tests: bool = False
+        self.stop_test_series: bool = False
+        self.current_test_thread: Optional[Thread] = None
+        self.selected_test_index: Optional[int] = None
 
-        self.start_time = None
+        self.start_time: Optional[datetime] = None
 
-    def create_menu(self):
+    def create_menu(self) -> None:
+        """
+        Create the application menu.
+        """
         menubar = tk.Menu(self.master)
         self.master.config(menu=menubar)
 
@@ -114,7 +159,10 @@ class TestExecutor:
         test_series_menu.add_command(label="Open Test Series...", command=self.open_test_series)
         menubar.add_cascade(label="Test Series", menu=test_series_menu)
 
-    def create_gui(self):
+    def create_gui(self) -> None:
+        """
+        Create the main GUI elements.
+        """
         # Main frame
         main_frame = ttk.Frame(self.master)
         main_frame.pack(fill=tk.BOTH, expand=True)
@@ -175,7 +223,10 @@ class TestExecutor:
 
         self.create_status_bar()
 
-    def create_status_bar(self):
+    def create_status_bar(self) -> None:
+        """
+        Create the status bar at the bottom of the window.
+        """
         self.status_bar = tk.Frame(self.master)
         self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
 
@@ -188,10 +239,18 @@ class TestExecutor:
         self.timer_label = tk.Label(self.status_bar, text="", font=get_font())
         self.timer_label.pack(side=tk.RIGHT, padx=5)
 
-    def update_status(self, status):
+    def update_status(self, status: str) -> None:
+        """
+        Update the status text in the status bar.
+
+        :param status: New status text
+        """
         self.status_label.config(text=status)
 
-    def update_timer(self):
+    def update_timer(self) -> None:
+        """
+        Update the timer display in the status bar.
+        """
         if self.start_time and self.is_running_tests:
             elapsed_time = datetime.now() - self.start_time
             hours, remainder = divmod(int(elapsed_time.total_seconds()), 3600)
@@ -202,12 +261,20 @@ class TestExecutor:
         else:
             self.timer_label.config(text="")
 
-    def save_lastrun(self,**kwargs):
+    def save_lastrun(self, **kwargs: Any) -> None:
+        """
+        Save the last run configuration to a file.
+
+        :param kwargs: Configuration key-value pairs to save
+        """
         self.lastrun.update(kwargs)
         with open(self.lastrun_path, 'w') as f:
             yaml.dump(self.lastrun, f)
 
-    def load_lastrun(self):
+    def load_lastrun(self) -> None:
+        """
+        Load the last run configuration from a file.
+        """
         if self.lastrun_path.exists():
             with open(self.lastrun_path, 'r') as f:
                     self.lastrun = yaml.safe_load(f)
@@ -215,7 +282,12 @@ class TestExecutor:
             self.lastrun = {}
             self.save_lastrun()
 
-    def set_working_directory(self,directory=False):
+    def set_working_directory(self, directory: Optional[str] = None) -> None:
+        """
+        Set the working directory for the test execution.
+
+        :param directory: Directory path to set as working directory
+        """
         specified_working_directory = directory if directory else self.settings.get('working_directory',False)
         self.working_directory = False
         if bool(specified_working_directory):
@@ -231,7 +303,12 @@ class TestExecutor:
         if not self.working_directory:
             print(f'Unable to access working directory!')
     
-    def set_output_directory(self,directory=False):
+    def set_output_directory(self, directory: Optional[str] = None) -> None:
+        """
+        Set the output directory for test results.
+
+        :param directory: Directory path to set as output directory
+        """
         specified_output_directory = directory if directory else self.settings.get('output_directory',False)
         self.output_directory = False
         if bool(specified_output_directory):
@@ -247,7 +324,12 @@ class TestExecutor:
         if not self.output_directory:
             print(f'Unable to access output directory!')
 
-    def set_test_directory(self, directory=False):
+    def set_test_directory(self, directory: Optional[str] = None) -> None:
+        """
+        Set the test directory containing the test series.
+
+        :param directory: Directory path to set as test directory
+        """
         if directory:
             self.clear_module_cache()
             specified_test_directory = directory
@@ -277,13 +359,19 @@ class TestExecutor:
             else:
                 exit()
 
-    def clear_module_cache(self):
+    def clear_module_cache(self) -> None:
+        """
+        Clear the cache of loaded test modules.
+        """
         for module_name in list(sys.modules.keys()):
             if module_name.startswith('tests.'):
                 del sys.modules[module_name]
         self.loaded_modules.clear()
 
-    def load_settings(self):
+    def load_settings(self) -> None:
+        """
+        Load test settings from configuration files.
+        """
         if (self.test_directory/'test_settings.yaml').exists():
             with open(self.test_directory/'test_settings.yaml', 'r') as f:
                 try: 
@@ -310,17 +398,26 @@ class TestExecutor:
         self.set_output_directory()
         self.set_working_directory()
 
-    def initialize_test(self):
+    def initialize_test(self) -> None:
+        """
+        Initialize the test series by loading settings and test series.
+        """
         self.load_settings()
         self.load_test_series()
 
-    def set_stop_test_series(self):
+    def set_stop_test_series(self) -> None:
+        """
+        Set the flag to stop the test series after the current test.
+        """
         if self.is_running_tests:
             self.stop_test_series = True
             self.output_text.insert(tk.END, f"\n! Discontinuing test progression !\n - Test series will stop at conclusion of present test.\n\n")
             self.output_text.see(tk.END)
 
-    def load_test_series(self):
+    def load_test_series(self) -> None:
+        """
+        Load the test series from the test_series.yaml file.
+        """
         self.test_series_loaded = False
 
         with open(self.test_directory/'test_series.yaml', 'r') as f:
@@ -339,7 +436,12 @@ class TestExecutor:
             
         self.test_canvas.configure(scrollregion=self.test_canvas.bbox("all"))
 
-    def on_test_select(self, index):
+    def on_test_select(self, index: int) -> None:
+        """
+        Handle the selection of a test item in the GUI.
+
+        :param index: Index of the selected test item
+        """
         if self.selected_test_index is not None:
             self.test_items[self.selected_test_index].deselect()
         
@@ -349,7 +451,10 @@ class TestExecutor:
         self.run_selected_button.config(state=tk.NORMAL)
         self.run_selected_continue_button.config(state=tk.NORMAL)
 
-    def run_selected_test(self):
+    def run_selected_test(self) -> None:
+        """
+        Run the currently selected test.
+        """
         if self.selected_test_index is not None and not self.is_running_tests:
             self.current_test_index = self.selected_test_index
             self.is_running_tests = True
@@ -370,14 +475,22 @@ class TestExecutor:
                 self.update_status("Test error")
                 self.start_time = None
 
-    def run_selected_test_continue(self):
+    def run_selected_test_continue(self) -> None:
+        """
+        Run the selected test and continue with the remaining tests in the series.
+        """
         if self.selected_test_index is not None and not self.is_running_tests:
             self.stop_test_series = False
             self.output_text.insert(tk.END, "\n--- Starting new test run from selected test ---\n\n")
             self.output_text.see(tk.END)
             self.run_all_tests(starting_index=self.selected_test_index)
 
-    def run_all_tests(self, starting_index=0):
+    def run_all_tests(self, starting_index: int = 0) -> None:
+        """
+        Run all tests in the series, starting from the specified index.
+
+        :param starting_index: Index of the first test to run
+        """
         if not self.is_running_tests:
             self.stop_test_series = False
             self.is_running_tests = True
@@ -390,10 +503,19 @@ class TestExecutor:
             self.test_running_indicator.config(fg="red")
             self.run_next_test()
 
-    def curselection(self):
+    def curselection(self) -> Tuple[int, ...]:
+        """
+        Get the currently selected test index.
+
+        :return: Tuple containing the selected test index, or an empty tuple if no test is selected
+        """
         return (self.selected_test_index,) if self.selected_test_index is not None else ()
 
-    def open_settings(self):
+
+    def open_settings(self) -> None:
+        """
+        Open the settings dialog.
+        """
         settings_window = tk.Toplevel(self.master)
         settings_window.title("Settings")
 
@@ -422,14 +544,23 @@ class TestExecutor:
         settings_window.grab_set()
         self.master.wait_window(settings_window)
 
-    def save_settings(self, entries, settings_window):
+    def save_settings(self, entries: Dict[str, tk.Variable], settings_window: tk.Toplevel) -> None:
+        """
+        Save the settings from the settings dialog.
+
+        :param entries: Dictionary of setting names and their corresponding Tkinter variables
+        :param settings_window: The settings dialog window to close after saving
+        """
         user_settings = {k: v.get() for k, v in entries.items()}
         with open(self.test_directory/'user_test_settings_override.yaml', 'w') as f:
             yaml.dump(user_settings, f)
         self.settings.update(user_settings)
         settings_window.destroy()
 
-    def run_next_test(self):
+    def run_next_test(self) -> None:
+        """
+        Run the next test in the series.
+        """
         if self.current_test_index < len(self.test_items):
             try:
                 self.run_test(self.current_test_index)
@@ -444,7 +575,12 @@ class TestExecutor:
             self.is_running_tests = False
             self.test_running_indicator.config(fg="gray")
 
-    def run_test(self, index):
+    def run_test(self, index: int) -> None:
+        """
+        Run a specific test by its index.
+
+        :param index: Index of the test to run
+        """
         test_item = self.test_items[index]
         test_name = test_item.test_name
         test_args = test_item.optional_args
@@ -477,11 +613,25 @@ class TestExecutor:
         self.current_test_thread.daemon = True
         self.current_test_thread.start()
 
-    def run_test_thread(self, test_module, plot_function, index, test_args):
+    def run_test_thread(self, test_module: Any, plot_function: Callable, index: int, test_args: Dict[str, Any]) -> None:
+        """
+        Run a test in a separate thread.
+
+        :param test_module: The loaded test module
+        :param plot_function: Function to use for plotting
+        :param index: Index of the test
+        :param test_args: Additional arguments for the test
+        """
         result = test_module.maintest(self.settings, self.test_items, plot_function, **test_args)
         self.master.after(0, self.update_test_result, result, index)
 
-    def update_test_result(self, result, index):
+    def update_test_result(self, result: str, index: int) -> None:
+        """
+        Update the GUI with the result of a test.
+
+        :param result: Result of the test
+        :param index: Index of the test
+        """
         test_item = self.test_items[index]
         test_item.set_status(result)
 
@@ -512,7 +662,10 @@ class TestExecutor:
                 self.update_status("All tests completed")
                 self.start_time = None
 
-    def check_graph_queue(self):
+    def check_graph_queue(self) -> None:
+        """
+        Check the graph queue for new plot data and update the graph.
+        """        
         try:
             args, kwargs = self.graph_queue.get_nowait()
             self.update_graph(*args, **kwargs)
@@ -520,7 +673,13 @@ class TestExecutor:
             pass
         self.master.after(100, self.check_graph_queue)
 
-    def update_graph(self, *args, **kwargs):
+    def update_graph(self, *args: Any, **kwargs: Any) -> None:
+        """
+        Update the graph with new plot data.
+
+        :param args: Positional arguments for plotting
+        :param kwargs: Keyword arguments for plotting
+        """
         self.ax.clear()
         plot_args = args[0] if args and isinstance(args[0], tuple) else args
         self.ax.plot(*plot_args)
@@ -530,7 +689,10 @@ class TestExecutor:
         self.ax.grid(kwargs.get('grid', False))
         self.canvas.draw()
 
-    def redirect_output(self):
+    def redirect_output(self) -> None:
+        """
+        Redirect stdout to the GUI output text widget and log file.
+        """
         class StdoutRedirector:
             def __init__(self, text_widget, output_directory):
                 self.text_widget = text_widget
@@ -552,7 +714,10 @@ class TestExecutor:
 
         sys.stdout = StdoutRedirector(self.output_text, self.output_directory)
 
-    def on_closing(self):
+    def on_closing(self) -> None:
+        """
+        Handle the closing of the application window.
+        """
         if self.is_running_tests:
             if tk.messagebox.askokcancel("Quit", "Tests are still running. Do you want to quit?"):
                 self.is_running_tests = False
@@ -561,7 +726,10 @@ class TestExecutor:
         else:
             self.master.quit()
 
-    def open_test_series(self):
+    def open_test_series(self) -> None:
+        """
+        Open a dialog to select a new test series directory.
+        """
         new_test_directory = filedialog.askdirectory(title="Select Test Series Directory")
         if new_test_directory:
             if self.validate_test_series(new_test_directory):
@@ -569,10 +737,22 @@ class TestExecutor:
             else:
                 messagebox.showerror("Invalid Test Series", "The selected directory does not contain a valid test series.")
 
-    def validate_test_series(self, directory):
+    def validate_test_series(self, directory: str) -> bool:
+        """
+        Validate if a directory contains a valid test series.
+
+        :param directory: Directory to validate
+        :return: True if the directory contains a valid test series, False otherwise
+        """        
         return Path(directory).is_dir() and (Path(directory) / 'test_series.yaml').exists()
 
-    def reinitialize_test_series(self, new_test_directory):
+
+    def reinitialize_test_series(self, new_test_directory: str) -> None:
+        """
+        Reinitialize the application with a new test series.
+
+        :param new_test_directory: Path to the new test series directory
+        """
         # Clear existing data
         self.output_text.delete('1.0', tk.END)
         self.ax.clear()
