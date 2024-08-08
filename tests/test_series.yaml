@@ -7,3 +7,51 @@ tests:
     file: test_count
   - name: Random CSV Test
     file: test_random_csv
+  - name: Simulator Test - Asphalt
+    file: car_simulator_range
+    args:
+      recording_count: 3
+      snapshot_count: 2
+      capture_delay: 2
+      road_type: asphalt
+      start_velocity: 0
+      end_velocity: 100
+      velocity_step: 20
+      start_speedbump_frequency: 0
+      end_speedbump_frequency: 5
+      speedbump_frequency_step: 1
+      fuel_level_threshold: 15.0
+  - name: Simulator Test - Gravel
+    file: car_simulator_range
+    args:
+      recording_count: 3
+      snapshot_count: 2
+      capture_delay: 2
+      road_type: gravel
+      start_velocity: 0
+      end_velocity: 80
+      velocity_step: 20
+      start_speedbump_frequency: 0
+      end_speedbump_frequency: 3
+      speedbump_frequency_step: 1
+      fuel_level_threshold: 15.0
+  - name: Simulator Test - Specific Conditions
+    file: car_simulator_range
+    args:
+      recording_count: 3
+      snapshot_count: 2
+      capture_delay: 2
+      road_type: gravel
+      initial_velocity: 0
+      ramp_velocity_step: 10
+      fuel_level_threshold: 15.0
+      test_conditions:
+        1:
+          velocity: 50
+          speedbump_frequency: 10
+        2:
+          velocity: 100
+          speedbump_frequency: 125
+        3:
+          velocity: 75
+          speedbump_frequency: 5
