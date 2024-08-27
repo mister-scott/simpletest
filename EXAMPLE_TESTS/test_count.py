@@ -1,7 +1,7 @@
 import time
 import numpy as np
 
-def maintest(settings, test_series, plot_function):
+def maintest(settings, test_series, plot_function, *args, **kwargs):
     # Count up from 1 to 5
     for i in range(1, 6):
         print(f"Counting up: {i}")

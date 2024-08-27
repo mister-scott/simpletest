@@ -2,12 +2,12 @@ import os
 import csv
 import random
 
-def maintest(settings, test_series, *args, **kwargs):
+def maintest(settings, test_series, plot_function, *args, **kwargs):
     # Generate 50 random values
     random_values = [random.uniform(0, 100) for _ in range(50)]
 
     # Save to CSV in the data directory
-    data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
+    data_dir = os.path.join(settings['working_directory'], 'data')
     os.makedirs(data_dir, exist_ok=True)
     csv_path = os.path.join(data_dir, 'random_values.csv')
 
@@ -25,7 +25,7 @@ def maintest(settings, test_series, *args, **kwargs):
     # Write report to output directory
     output_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'output')
     os.makedirs(output_dir, exist_ok=True)
-    report_path = os.path.join(output_dir, 'report.txt')
+    report_path = os.path.join(settings['output_directory'], 'report.txt')
 
     with open(report_path, 'w') as reportfile:
         reportfile.write(f"Sum of 50 random values: {total_sum}\n")

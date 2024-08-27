@@ -1,0 +1,6 @@
+debug_mode: false
+max_runtime: '600'
+output_directory: WORKING
+test_directory: C:\code\simpletest\EXAMPLE_TESTS
+verbose_output: true
+working_directory: OUTPUT

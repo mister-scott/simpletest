@@ -645,6 +645,10 @@ class TestExecutor:
         self.output_text.see(tk.END)
 
         try:
+            # Strip out .py if added into test file to prevent error when trying to call the file
+            if test_info['file'][-3:] == '.py':
+                test_info['file'] = test_info['file'][:-3]
+
             module_path = self.test_directory / f"{test_info['file']}.py"
             spec = importlib.util.spec_from_file_location(f"tests.{test_info['file']}", module_path)
             test_module = importlib.util.module_from_spec(spec)

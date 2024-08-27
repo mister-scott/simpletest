@@ -3,7 +3,13 @@ import os
 import pandas as pd
 from pathlib import Path
 
-def maintest(settings, test_series, plot_function, **kwargs):
+# This hypothetical tests illustrates use of iterative runs and use of kwargs in the test_series.yaml
+
+def maintest(settings, test_series, plot_function, *args, **kwargs):
+    print('car_simulator_points is not designed to be executed, as it is missing noted hypothetical functions.')
+    print(f'car_simulator_points recieved the following arguments:\n{kwargs}')
+    return 'done'
+
     # Extract test parameters from kwargs
     recording_count = kwargs.get('recording_count', 1)
     snapshot_count = kwargs.get('snapshot_count', 1)

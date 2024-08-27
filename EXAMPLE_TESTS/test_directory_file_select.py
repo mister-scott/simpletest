@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import filedialog
 
-def maintest(settings, test_series, *args, **kwargs):
+def maintest(settings, test_series, plot_function, *args, **kwargs):
     root = tk.Tk()
     root.withdraw()
     

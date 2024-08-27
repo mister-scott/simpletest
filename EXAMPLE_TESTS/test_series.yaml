@@ -1,5 +1,3 @@
-Updated Test Series YAML
-
 tests:
   - name: Request User Name
     file: test_username
@@ -9,6 +7,8 @@ tests:
     file: test_count
   - name: Random CSV Test
     file: test_random_csv
+  - name: Test Import Methods
+    file: test_import
   - name: Simulator Test - Asphalt
     file: car_simulator_range
     args:
