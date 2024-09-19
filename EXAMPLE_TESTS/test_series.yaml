@@ -9,6 +9,8 @@ tests:
     file: test_random_csv
   - name: Test Import Methods
     file: test_import
+  - name: Raise Exception
+    file: test_exception
   - name: Simulator Test - Asphalt
     file: car_simulator_range
     args:

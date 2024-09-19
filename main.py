@@ -672,7 +672,11 @@ class TestExecutor:
         :param index: Index of the test
         :param test_args: Additional arguments for the test
         """
-        result = test_module.maintest(self.settings, self.test_items, plot_function, **test_args)
+        try:
+            result = test_module.maintest(self.settings, self.test_items, plot_function, **test_args)
+        except Exception as e:
+            print(f"Test encountered an exception; handling as failure:\n{e}")
+            result = 'fail'
         self.master.after(0, self.update_test_result, result, index)
 
     def update_test_result(self, result: str, index: int) -> None:
