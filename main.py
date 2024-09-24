@@ -52,7 +52,7 @@ class TestListItem(tk.Frame):
         self.on_select_callback: Callable[[int], None] = on_select_callback
         self.status: str = "pending"
         self.optional_args: Dict[str, Any] = {}
-        self.status_label: tk.Label = tk.Label(self, text="⃝", width=2, font=get_font())
+        self.status_label: tk.Label = tk.Label(self, text="►", width=2, font=get_font())
         self.status_label.pack(side=tk.LEFT)
         self.name_label: tk.Label = tk.Label(self, text=test_name, anchor="w",  font=get_font())
         self.name_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
