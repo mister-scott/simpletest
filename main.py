@@ -121,6 +121,7 @@ class TestExecutor:
 
         self.master.protocol("WM_DELETE_WINDOW", self.on_closing)
 
+        self.test_series_file: Optional[str] = None
         self.default_test_directory: Path = Path('TESTS')
         self.default_output_directory: Path = Path('WORKING')
         self.default_working_directory: Path = Path('OUTPUT')
@@ -334,7 +335,7 @@ class TestExecutor:
         """
         Set the test directory containing the test series.
 
-        :param test_series_file: Path to the test_series.yaml file or zip archive
+        :param test_series_file: Path to the test series YAML file or zip archive
         """
         if test_series_file:
             self.clear_module_cache()
@@ -345,6 +346,7 @@ class TestExecutor:
             specified_test_series_file = None
         
         self.test_directory = None
+        self.test_series_file = None
         
         if specified_test_series_file:
             try:
@@ -362,48 +364,63 @@ class TestExecutor:
                                 shutil.rmtree(new_test_dir)
                             shutil.copytree(os.path.dirname(test_series_yaml), new_test_dir)
                             self.test_directory = Path(new_test_dir)
+                            self.test_series_file = os.path.basename(test_series_yaml)
                         else:
-                            raise Exception(f'The ZIP file does not contain a valid test series.')
+                            raise Exception(f'The ZIP file does not contain a valid test series YAML file.')
                 else:
                     # Handle YAML file
                     test_dir = os.path.dirname(specified_test_series_file)
                     if self.validate_test_series(test_dir):
                         self.test_directory = Path(test_dir)
+                        self.test_series_file = os.path.basename(specified_test_series_file)
                     else:
-                        raise Exception(f'The directory does not contain a valid test series.')
+                        raise Exception(f'The directory does not contain a valid test series YAML file.')
                 
-                if self.test_directory:
+                if self.test_directory and self.test_series_file:
                     print(f'Test directory: {self.test_directory.absolute()}')
+                    print(f'Test series file: {self.test_series_file}')
                     print(f'Initializing Test Series...')
                     self.initialize_test()
                     self.save_lastrun(test_series_file=str(specified_test_series_file))
             except Exception as e:
                 print(f'Unable to open test series: {e}')
                 self.test_directory = None
+                self.test_series_file = None
 
-        if not self.test_directory:
+        if not self.test_directory or not self.test_series_file:
             self.open_test_series()
 
     def find_test_series_yaml(self, directory: str) -> Optional[str]:
         """
-        Find the test_series.yaml file in the given directory or its subdirectories.
+        Find the first YAML file in the given directory or its subdirectories.
 
         :param directory: Directory to search in
-        :return: Path to test_series.yaml if found, None otherwise
+        :return: Path to the first YAML file found, None otherwise
         """
         for root, dirs, files in os.walk(directory):
-            if 'test_series.yaml' in files:
-                return os.path.join(root, 'test_series.yaml')
+            for file in files:
+                if file.endswith(('.yaml', '.yml')):
+                    return os.path.join(root, file)
         return None
 
     def validate_test_series(self, directory: str) -> bool:
         """
-        Validate if a directory contains a valid test series.
+        Validate if a directory contains a valid test series YAML file.
 
         :param directory: Directory to validate
-        :return: True if the directory contains a valid test series, False otherwise
+        :return: True if the directory contains a valid test series YAML file, False otherwise
         """
-        return os.path.isfile(os.path.join(directory, 'test_series.yaml'))       
+        yaml_files = [f for f in os.listdir(directory) if f.endswith(('.yaml', '.yml'))]
+        for yaml_file in yaml_files:
+            with open(os.path.join(directory, yaml_file), 'r') as f:
+                try:
+                    content = yaml.safe_load(f)
+                    if isinstance(content, dict) and 'tests' in content:
+                        self.test_series_file = yaml_file
+                        return True
+                except yaml.YAMLError:
+                    continue
+        return False 
     
     def clear_module_cache(self) -> None:
         """
@@ -462,11 +479,11 @@ class TestExecutor:
 
     def load_test_series(self) -> None:
         """
-        Load the test series from the test_series.yaml file.
+        Load the test series from the test series YAML file.
         """
         self.test_series_loaded = False
 
-        with open(self.test_directory/'test_series.yaml', 'r') as f:
+        with open(self.test_directory / self.test_series_file, 'r') as f:
             self.test_series = yaml.safe_load(f)
 
         # Clear existing test items
