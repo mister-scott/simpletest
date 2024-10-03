@@ -444,6 +444,36 @@ class TestExecutor:
                 del sys.modules[module_name]
         self.loaded_modules.clear()
 
+    def apply_types(self, a, b):
+        """
+        Recursively applies the types from the first YAML structure (a) to the second YAML structure (b).
+        Expects a and b to be the result of yaml.safeload()
+
+        Args:
+            a (Union[Dict[str, Any], List[Any], Any]): The first YAML structure with the correct types.
+            b (Union[Dict[str, Any], List[Any], Any]): The second YAML structure with all values as strings.
+        
+        Returns:
+            Union[Dict[str, Any], List[Any], Any]: The second YAML structure with types applied from the first YAML structure.
+        
+        Note:
+            - Skips entries that appear in 'a' but not in 'b' and vice versa.
+            - Handles nested dictionaries and lists.
+            - Retains the value from 'b' if the type is incompatible with 'a'.
+        """
+        if isinstance(a, dict) and isinstance(b, dict):
+            return {k: self.apply_types(a[k], b[k]) for k in a if k in b}
+        elif isinstance(a, list) and isinstance(b, list):
+            return [self.apply_types(a[i], b[i]) for i in range(min(len(a), len(b)))]
+        else:
+            a = str(a.resolve()) if isinstance(a,Path) else a
+            b = str(b.resolve()) if isinstance(b,Path) else b
+            try:
+                return type(a)(b)
+            except (ValueError, TypeError):
+                return b
+
+
     def load_settings(self) -> None:
         """
         Load test settings from configuration files.
@@ -464,6 +494,7 @@ class TestExecutor:
         user_test_settings_override = self.test_directory/'user_test_settings_override.yaml'
         if user_test_settings_override.exists():
             with open(user_test_settings_override, 'r') as f:
+                # user_settings = self.apply_types(_settings,yaml.safe_load(f))
                 user_settings = yaml.safe_load(f)
                 self.settings.update(user_settings)
 
@@ -598,16 +629,19 @@ class TestExecutor:
         row = 0
         entries = {}
         for key, value in self.settings.items():
-            ttk.Label(settings_window, text=key, font=get_font()).grid(row=row, column=0, sticky="w")
-            if isinstance(value, bool):
-                var = tk.BooleanVar(value=value)
-                ttk.Checkbutton(settings_window, variable=var).grid(row=row, column=1)
-                entries[key] = var
+            if key == 'test_directory':
+                continue
             else:
-                var = tk.StringVar(value=str(value))
-                ttk.Entry(settings_window, textvariable=var, font=get_font()).grid(row=row, column=1)
-                entries[key] = var
-            row += 1
+                ttk.Label(settings_window, text=key, font=get_font()).grid(row=row, column=0, sticky="w")
+                if isinstance(value, bool):
+                    var = tk.BooleanVar(value=value)
+                    ttk.Checkbutton(settings_window, variable=var).grid(row=row, column=1)
+                    entries[key] = var
+                else:
+                    var = tk.StringVar(value=str(value))
+                    ttk.Entry(settings_window, textvariable=var, font=get_font()).grid(row=row, column=1)
+                    entries[key] = var
+                row += 1
 
         button_frame = ttk.Frame(settings_window)
         button_frame.grid(row=row, column=0, columnspan=2, pady=10)
@@ -628,6 +662,9 @@ class TestExecutor:
         :param settings_window: The settings dialog window to close after saving
         """
         user_settings = {k: v.get() for k, v in entries.items()}
+        if user_settings.get('test_directory',False):
+            del user_settings['test_directory']
+        user_settings = self.apply_types(self.settings,user_settings)
         with open(self.test_directory/'user_test_settings_override.yaml', 'w') as f:
             yaml.dump(user_settings, f)
         self.settings.update(user_settings)
