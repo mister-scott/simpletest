@@ -1,0 +1,13 @@
+tests:
+  - name: Request User Name
+    file: test_username
+  - name: Count and Graph Test
+    file: test_count_and_graph
+  - name: Count Only Test
+    file: test_count
+  - name: Random CSV Test
+    file: test_random_csv
+  - name: Test Import Methods
+    file: test_import
+  - name: Raise Exception
+    file: test_exception
