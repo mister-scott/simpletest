@@ -17,7 +17,7 @@ import tempfile
 import zipfile
 import shutil
 
-VERSION = "1.2.0"  # Updated version number
+VERSION = "1.2.1"  # Updated version number
 FONT_SIZE = 12 
 LOGGING_ENABLED = True
 
@@ -238,13 +238,25 @@ class TestExecutor:
         self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
 
         self.version_label = tk.Label(self.status_bar, text=f"v{VERSION}", font=get_font(-1))
-        self.version_label.pack(side=tk.LEFT, padx=5)
+        self.version_label.pack(side=tk.LEFT, padx=(5, 0))
+
+        self.test_series_label = tk.Label(self.status_bar, text="", font=get_font(-1))
+        self.test_series_label.pack(side=tk.LEFT, padx=(5, 0))
 
         self.status_label = tk.Label(self.status_bar, text="Ready", font=get_font())
         self.status_label.pack(side=tk.RIGHT, padx=5)
 
         self.timer_label = tk.Label(self.status_bar, text="", font=get_font())
         self.timer_label.pack(side=tk.RIGHT, padx=5)
+
+    def update_test_series_label(self) -> None:
+        """
+        Update the test series label in the status bar with the current test series file name.
+        """
+        if self.test_series_file:
+            self.test_series_label.config(text=f"Test Series: {self.test_series_file}")
+        else:
+            self.test_series_label.config(text="")
 
     def update_status(self, status: str) -> None:
         """
@@ -382,6 +394,7 @@ class TestExecutor:
                     print(f'Initializing Test Series...')
                     self.initialize_test()
                     self.save_lastrun(test_series_file=str(specified_test_series_file))
+                    self.update_test_series_label()  # Add this line
             except Exception as e:
                 print(f'Unable to open test series: {e}')
                 self.test_directory = None
