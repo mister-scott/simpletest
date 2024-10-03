@@ -820,6 +820,7 @@ class TestExecutor:
         )
         if new_test_series_file:
             self.set_test_directory(new_test_series_file)
+            self.update_test_series_label()
 
     def reinitialize_test_series(self, new_test_directory: str) -> None:
         """
