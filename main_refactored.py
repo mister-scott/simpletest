@@ -10,7 +10,7 @@ from core.settings import Settings
 from core.file_manager import FileManager
 from core.output_manager import OutputManager
 from core.test_runner import TestRunner
-from gui.components.test_list_item import TestListItem
+from gui.components.test_list import TestList
 from gui.components.graph_manager import GraphManager
 from gui.components.status_bar import StatusBar
 from gui.components.menu_manager import MenuManager
@@ -78,27 +78,8 @@ class TestExecutor:
         left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
         # Test list section
-        self.test_frame = tk.Frame(left_frame)
-        self.test_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-        
-        self.test_canvas = tk.Canvas(self.test_frame)
-        self.test_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        
-        self.test_scrollbar = tk.Scrollbar(
-            self.test_frame,
-            orient=tk.VERTICAL,
-            command=self.test_canvas.yview
-        )
-        self.test_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        self.test_canvas.configure(yscrollcommand=self.test_scrollbar.set)
-        self.test_canvas.bind(
-            '<Configure>',
-            lambda e: self.test_canvas.configure(scrollregion=self.test_canvas.bbox("all"))
-        )
-        
-        self.test_inner_frame = tk.Frame(self.test_canvas)
-        self.test_canvas.create_window((0, 0), window=self.test_inner_frame, anchor="nw")
+        self.test_list = TestList(left_frame, self.on_test_select)
+        self.test_list.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
         
         # Control panel
         control_commands = {
@@ -196,24 +177,14 @@ class TestExecutor:
 
     def update_test_list(self) -> None:
         """Update the test list display."""
-        # Clear existing test items
-        for widget in self.test_inner_frame.winfo_children():
-            widget.destroy()
-        
-        # Store test items for selection management
-        self.test_list_items = []
+        self.test_list.clear()
         
         # Create new test items
         for i, test_item in enumerate(self.test_runner.test_items):
-            list_item = TestListItem(
-                self.test_inner_frame,
+            list_item = self.test_list.add_test(
                 {'name': test_item.name, 'args': test_item.args},
-                i,
-                self.on_test_select
+                i
             )
-            list_item.pack(fill=tk.X, padx=5, pady=2)
-            self.test_list_items.append(list_item)
-            
             # Add as observer for status updates
             test_item.add_observer(list_item.set_status)
 
@@ -226,8 +197,8 @@ class TestExecutor:
         """
         # Deselect previously selected item
         if hasattr(self, 'selected_test_index'):
-            if self.selected_test_index is not None and 0 <= self.selected_test_index < len(self.test_list_items):
-                self.test_list_items[self.selected_test_index].deselect()
+            if self.selected_test_index is not None:
+                self.test_list.deselect_all()
         
         self.selected_test_index = index
         self.control_panel.enable_selected_buttons()
