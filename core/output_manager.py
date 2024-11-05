@@ -26,7 +26,28 @@ class OutputManager:
         self._graph_handlers: List[Callable[[tuple, dict], None]] = []
         self._graph_queue: Queue = Queue()
         self.logging_enabled = True
-        self._output_directory: Optional[Path] = None
+        
+        # Set output directory from settings
+        output_dir = settings.get('output_directory')
+        if output_dir:
+            self._output_directory = Path(output_dir)
+            self._output_directory.mkdir(parents=True, exist_ok=True)
+        else:
+            self._output_directory = None
+            
+        # Add settings observer to update output directory when settings change
+        settings.add_observer(self._on_settings_change)
+
+    def _on_settings_change(self, key: str, value: Any) -> None:
+        """
+        Handle settings changes.
+        
+        Args:
+            key: Setting key that changed
+            value: New value
+        """
+        if key == 'output_directory':
+            self.set_output_directory(Path(value))
 
     def set_output_directory(self, directory: Path) -> None:
         """
@@ -111,7 +132,6 @@ class OutputManager:
             log_file = self._output_directory / 'log.txt'
             try:
                 writemode = 'a' if Path(log_file).exists() else 'w'
-                print(writemode)
                 with open(log_file, writemode, encoding='utf-8') as f:
                     f.write(log_text)
             except Exception as e:
