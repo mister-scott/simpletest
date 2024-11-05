@@ -182,3 +182,6 @@ When adding new features:
 
 ## Examples
 See the EXAMPLE_TESTS directory for sample test implementations.
+
+## Missing features
+Presently there is no handling for graphs returned from tests in headless mode.

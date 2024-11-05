@@ -51,7 +51,8 @@ class ControlPanel(tk.Frame):
         self.stop_button = tk.Button(
             self,
             text="Stop",
-            command=commands.get('stop')
+            command=commands.get('stop'),
+            state=tk.DISABLED  # Initially disabled
         )
         self.stop_button.pack(side=tk.LEFT)
         
@@ -65,8 +66,9 @@ class ControlPanel(tk.Frame):
 
     def enable_selected_buttons(self) -> None:
         """Enable buttons that require test selection."""
-        self.run_selected_button.config(state=tk.NORMAL)
-        self.run_selected_continue_button.config(state=tk.NORMAL)
+        if not self.running_indicator.cget('fg') == "red":  # Only if not running
+            self.run_selected_button.config(state=tk.NORMAL)
+            self.run_selected_continue_button.config(state=tk.NORMAL)
 
     def disable_selected_buttons(self) -> None:
         """Disable buttons that require test selection."""
@@ -82,14 +84,21 @@ class ControlPanel(tk.Frame):
         """
         self.running_indicator.config(fg="red" if is_running else "gray")
         
-        # Update button states
-        state = tk.DISABLED if is_running else tk.NORMAL
-        self.run_all_button.config(state=state)
-        
-        # Only enable selected buttons if not running and they were previously enabled
-        if not is_running and self.run_selected_button.cget('state') == 'normal':
-            self.run_selected_button.config(state=tk.NORMAL)
-            self.run_selected_continue_button.config(state=tk.NORMAL)
-        else:
+        if is_running:
+            # When running, disable all buttons except stop
+            self.run_all_button.config(state=tk.DISABLED)
             self.run_selected_button.config(state=tk.DISABLED)
             self.run_selected_continue_button.config(state=tk.DISABLED)
+            self.stop_button.config(state=tk.NORMAL)  # Enable stop button
+        else:
+            # When not running, enable run all and disable stop
+            self.run_all_button.config(state=tk.NORMAL)
+            self.stop_button.config(state=tk.DISABLED)
+            
+            # Only enable selected buttons if they were previously enabled
+            if self.run_selected_button.cget('state') == 'normal':
+                self.run_selected_button.config(state=tk.NORMAL)
+                self.run_selected_continue_button.config(state=tk.NORMAL)
+            else:
+                self.run_selected_button.config(state=tk.DISABLED)
+                self.run_selected_continue_button.config(state=tk.DISABLED)
