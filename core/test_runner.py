@@ -100,21 +100,24 @@ class TestRunner:
             test_item = TestItem(test['name'], test['file'], test.get('args', {}))
             self.test_items.append(test_item)
 
-    def run_test(self, index: int) -> None:
+    def run_test(self, index: int, single_mode: bool = True) -> None:
         """
         Run a specific test by index.
         
         Args:
             index: Index of the test to run
+            single_mode: Whether this is a single test run or part of a series
         """
         if not 0 <= index < len(self.test_items):
             raise ValueError("Invalid test index")
             
-        self.single_test_mode = True
+        self.single_test_mode = single_mode
         self.is_running_tests = True
         self.stop_requested = False
         self.current_test_index = index
-        self.start_time = datetime.now()
+        
+        if single_mode:
+            self.start_time = datetime.now()
             
         test_item = self.test_items[index]
         self._notify_status(f"Running test: {test_item.name}")
@@ -186,7 +189,7 @@ class TestRunner:
     def run_next_test(self) -> None:
         """Run the next test in the series."""
         if self.current_test_index < len(self.test_items):
-            self.run_test(self.current_test_index)
+            self.run_test(self.current_test_index, single_mode=False)
         else:
             self.stop_test_series()
             self._notify_status("All tests completed")
@@ -286,6 +289,12 @@ class TestRunner:
         """
         for observer in self._test_observers:
             observer(index, status)
+        
+        # Handle test failure immediately
+        if status == "fail":
+            self.output_manager.write(f"Test failed: {self.test_items[index].name}\n")
+            self.stop_test_series()
+            return
         
         if self.single_test_mode:
             # In single test mode, stop after the test completes
