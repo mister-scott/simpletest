@@ -215,8 +215,12 @@ class TestExecutor:
 
     def load_last_run(self) -> None:
         """Load the last run configuration."""
-        # TODO: Implement last run loading
-        pass
+        # FileManager already loaded the last run in its __init__
+        # Just need to update the GUI if a test series was loaded
+        if self.file_manager.get_test_series():
+            self.test_runner.load_tests()
+            self.update_test_list()
+            self.status_bar.set_test_series(self.file_manager.get_test_series_file())
 
     def redirect_output(self) -> None:
         """Redirect stdout to the GUI output."""

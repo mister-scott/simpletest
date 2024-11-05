@@ -27,14 +27,52 @@ class FileManager:
         self.test_directory: Optional[Path] = None
         self.test_series_file: Optional[str] = None
         self.test_series: Dict[str, Any] = {}
+        self.lastrun_path = Path('.lastrun.yaml')
+        self.lastrun: Dict[str, Any] = {}
         
         # Ensure test series directory exists
         self._ensure_test_series_directory()
+        
+        # Load last run configuration
+        self.load_lastrun()
 
     def _ensure_test_series_directory(self) -> None:
         """Create the test series directory if it doesn't exist."""
         test_series_dir = Path('TESTS/test_series')
         test_series_dir.mkdir(parents=True, exist_ok=True)
+
+    def load_lastrun(self) -> None:
+        """Load the last run configuration from file and set up test series."""
+        if self.lastrun_path.exists():
+            try:
+                with open(self.lastrun_path, 'r') as f:
+                    self.lastrun = yaml.safe_load(f) or {}
+                    
+                # If there's a test series file in the last run, load it
+                if test_series_file := self.lastrun.get('test_series_file'):
+                    if Path(test_series_file).exists():
+                        self.set_test_directory(test_series_file)
+                    else:
+                        print(f"Warning: Last run test series file not found: {test_series_file}")
+            except Exception as e:
+                print(f"Error loading last run configuration: {e}")
+                self.lastrun = {}
+        else:
+            self.lastrun = {}
+
+    def save_lastrun(self, **kwargs: Any) -> None:
+        """
+        Save the last run configuration to file.
+        
+        Args:
+            **kwargs: Configuration key-value pairs to save
+        """
+        self.lastrun.update(kwargs)
+        try:
+            with open(self.lastrun_path, 'w') as f:
+                yaml.dump(self.lastrun, f)
+        except Exception as e:
+            print(f"Error saving last run configuration: {e}")
 
     def set_test_directory(self, test_series_path: str) -> bool:
         """
@@ -55,6 +93,8 @@ class FileManager:
             if success:
                 # Update settings with the new test directory
                 self.settings.set('test_directory', str(self.test_directory.absolute()))
+                # Save to lastrun
+                self.save_lastrun(test_series_file=str(Path(test_series_path).absolute()))
                 return True
             return False
             
