@@ -19,10 +19,17 @@ def parse_args() -> argparse.Namespace:
     Returns:
         argparse.Namespace: Parsed arguments
     """
-    parser = argparse.ArgumentParser(description='SimpleTest - A GUI/CLI test execution tool')
-    parser.add_argument('--cli', action='store_true', help='Run in CLI mode')
+    parser = argparse.ArgumentParser(description='SimpleTest - A test execution tool')
+    
+    # Test series and settings are required for headless mode
     parser.add_argument('--test-series', type=str, help='Path to test series file')
+    parser.add_argument('--test-settings', type=str, help='Path to test settings file')
+    
+    # Optional arguments
+    parser.add_argument('--working-dir', type=str, help='Working directory path (defaults to ./WORKING)')
+    parser.add_argument('--output-dir', type=str, help='Output directory path (defaults to ./OUTPUT)')
     parser.add_argument('--test', type=str, help='Name of specific test to run')
+    
     return parser.parse_args()
 
 def main() -> int:
@@ -30,36 +37,38 @@ def main() -> int:
     Main entry point.
     
     Returns:
-        int: Exit code (0 for success, 1 for failure)
+        int: Exit code (0 for success, 1 for test failure, 2 for configuration error)
     """
     args = parse_args()
     
-    if args.cli:
-        # CLI mode
-        if not args.test_series:
-            print("Error: --test-series is required in CLI mode")
-            return 1
-            
+    # If both test series and settings are provided, run in headless mode
+    if args.test_series and args.test_settings:
         executor = CLIExecutor()
-        return executor.run(args.test_series, args.test)
-    else:
-        # GUI mode
-        root = tk.Tk()
-        app = TestExecutor(root, VERSION)
+        return executor.run_headless(
+            test_series_file=args.test_series,
+            test_settings_file=args.test_settings,
+            working_dir=args.working_dir,
+            output_dir=args.output_dir,
+            selected_test=args.test
+        )
+    
+    # Otherwise run in GUI mode
+    root = tk.Tk()
+    app = TestExecutor(root, VERSION)
+    
+    # If test series specified, load it
+    if args.test_series:
+        app.load_test_series(args.test_series)
         
-        # If test series specified, load it
-        if args.test_series:
-            app.load_test_series(args.test_series)
-            
-            # If specific test specified, select it
-            if args.test:
-                for i, test_item in enumerate(app.test_runner.test_items):
-                    if test_item.name == args.test:
-                        app.on_test_select(i)
-                        break
-        
-        root.mainloop()
-        return 0
+        # If specific test specified, select it
+        if args.test:
+            for i, test_item in enumerate(app.test_runner.test_items):
+                if test_item.name == args.test:
+                    app.on_test_select(i)
+                    break
+    
+    root.mainloop()
+    return 0
 
 if __name__ == "__main__":
     sys.exit(main())

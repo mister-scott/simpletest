@@ -139,7 +139,7 @@ def maintest(settings: Dict[str, Any], test_items: List[Any],
 ## Command Line Interface
 
 ```bash
-python main_refactored.py [-h] [--cli] [--test-series TEST_SERIES] [--test TEST]
+python main.py [-h] [--cli] [--test-series TEST_SERIES] [--test TEST]
 
 options:
   -h, --help            Show this help message and exit

@@ -1,5 +1,11 @@
 # SimpleTest Headless Mode Feature Specification
 
+## High level instructions:
+After each change:
+1) Inform the user on what the change is expected to do
+2) Test your change
+3) Update your progress to HEADLESS_PROGRESS.md
+
 ## Overview
 Add a non-interactive "headless" mode to SimpleTest that allows running a test series without GUI elements or user interaction. This mode will bypass configuration loading and exit automatically upon completion.
 
@@ -7,7 +13,7 @@ Add a non-interactive "headless" mode to SimpleTest that allows running a test s
 
 ### New Arguments
 ```bash
-python main_refactored.py --headless \
+python main.py --headless \
     --test-series path/to/test_series.yaml \
     --test-settings path/to/test_settings.yaml \
     [--working-dir path/to/working] \
@@ -122,14 +128,14 @@ def parse_args():
 
 ### Basic Usage
 ```bash
-python main_refactored.py --headless \
+python main.py --headless \
     --test-series tests/my_series.yaml \
     --test-settings tests/settings.yaml
 ```
 
 ### Custom Directories
 ```bash
-python main_refactored.py --headless \
+python main.py --headless \
     --test-series tests/my_series.yaml \
     --test-settings tests/settings.yaml \
     --working-dir /tmp/work \

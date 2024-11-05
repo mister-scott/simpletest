@@ -60,22 +60,22 @@ It does this through:
 ### GUI Mode
 Run the application without arguments to start in GUI mode:
 ```bash
-python main_refactored.py
+python main.py
 ```
 
 Optionally specify a test series to load:
 ```bash
-python main_refactored.py --test-series path/to/test_series.yaml
+python main.py --test-series path/to/test_series.yaml
 ```
 
 ### CLI Mode
 Run tests from the command line:
 ```bash
 # Run all tests in a series
-python main_refactored.py --cli --test-series path/to/test_series.yaml
+python main.py --cli --test-series path/to/test_series.yaml
 
 # Run a specific test
-python main_refactored.py --cli --test-series path/to/test_series.yaml --test "Test Name"
+python main.py --cli --test-series path/to/test_series.yaml --test "Test Name"
 ```
 
 ### Command Line Arguments

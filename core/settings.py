@@ -33,7 +33,6 @@ class Settings:
             self._default_output_directory.mkdir(exist_ok=True)
             self._default_working_directory.mkdir(exist_ok=True)
             self._default_test_directory.mkdir(exist_ok=True)
-            print(f"Created default directories: {self._default_output_directory}, {self._default_working_directory}, {self._default_test_directory}")
         except Exception as e:
             print(f"Error creating default directories: {e}")
 
@@ -44,6 +43,48 @@ class Settings:
             'working_directory': str(self._default_working_directory.absolute()),
             'test_directory': str(self._default_test_directory.absolute())
         }
+
+    def load_headless(self, settings_file: Path) -> bool:
+        """
+        Load settings in headless mode, skipping .lastrun.yaml and user overrides.
+        
+        Args:
+            settings_file: Path to test settings file
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # Load settings file
+            if not settings_file.exists():
+                print(f"Error: Settings file not found: {settings_file}")
+                return False
+                
+            with open(settings_file, 'r') as f:
+                settings = yaml.safe_load(f)
+                if settings:
+                    # Remove test_directory if present as it's a reserved parameter
+                    if settings.get('test_directory', False):
+                        del settings['test_directory']
+                        print('Setting "test_directory" is a reserved parameter, and was ignored.')
+                    self._settings.update(settings)
+            
+            # Ensure directory settings are absolute paths and strings
+            self._settings['output_directory'] = str(Path(self._settings.get('output_directory', self._default_output_directory)).absolute())
+            self._settings['working_directory'] = str(Path(self._settings.get('working_directory', self._default_working_directory)).absolute())
+            
+            # Create directories if they don't exist
+            Path(self._settings['output_directory']).mkdir(parents=True, exist_ok=True)
+            Path(self._settings['working_directory']).mkdir(parents=True, exist_ok=True)
+            
+            # Notify observers of settings load
+            self._notify_observers('all', None)
+            
+            return True
+            
+        except Exception as e:
+            print(f"Error loading settings in headless mode: {e}")
+            return False
 
     def load_settings(self, test_directory: Path) -> None:
         """

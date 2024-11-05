@@ -28,10 +28,10 @@ SimpleTest can be run in two modes:
 ### Basic Usage
 ```bash
 # Start GUI mode
-python main_refactored.py
+python main.py
 
 # Start CLI mode
-python main_refactored.py --cli --test-series path/to/test_series.yaml
+python main.py --cli --test-series path/to/test_series.yaml
 ```
 
 ## Using the GUI
@@ -78,13 +78,13 @@ The GUI consists of several sections:
 ### Basic Commands
 ```bash
 # Run all tests
-python main_refactored.py --cli --test-series tests/test_series.yaml
+python main.py --cli --test-series tests/test_series.yaml
 
 # Run specific test
-python main_refactored.py --cli --test-series tests/test_series.yaml --test "Test Name"
+python main.py --cli --test-series tests/test_series.yaml --test "Test Name"
 
 # Show help
-python main_refactored.py --help
+python main.py --help
 ```
 
 ### Output
