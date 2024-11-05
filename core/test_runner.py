@@ -122,6 +122,9 @@ class TestRunner:
         test_item = self.test_items[index]
         self._notify_status(f"Running test: {test_item.name}")
         
+        # Print test start message
+        self.output_manager.write(f"\nStarting test: {test_item.name}\n")
+        
         try:
             # Import test module
             test_file = test_item.file
@@ -287,12 +290,17 @@ class TestRunner:
             index: Test index
             status: Test status
         """
+        test_item = self.test_items[index]
+        
+        # Print test completion message
+        self.output_manager.write(f"Test complete: {test_item.name} - {status}\n")
+        
         for observer in self._test_observers:
             observer(index, status)
         
         # Handle test failure immediately
         if status == "fail":
-            self.output_manager.write(f"Test failed: {self.test_items[index].name}\n")
+            # self.output_manager.write(f"Test failed: {test_item.name}\n")
             self.stop_test_series()
             return
         
