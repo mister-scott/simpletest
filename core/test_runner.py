@@ -300,7 +300,6 @@ class TestRunner:
         
         # Handle test failure immediately
         if status == "fail":
-            # self.output_manager.write(f"Test failed: {test_item.name}\n")
             self.stop_test_series()
             return
         
