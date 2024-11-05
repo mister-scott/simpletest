@@ -32,6 +32,18 @@ This document tracks the progress of refactoring the SimpleTest application from
   - Successfully runs test series
   - Verified working with single test and series execution
 
+- ✅ CLIExecutor Component (core/cli_executor.py)
+  - Handles command-line test execution
+  - Integrates with core components
+  - Supports running specific tests
+  - Provides clear error messages
+
+- ✅ CLI Module (core/cli.py)
+  - Handles argument parsing
+  - Manages program execution modes
+  - Supports both GUI and CLI operation
+  - Provides clean entry point
+
 ### Phase 2: GUI Components
 - ✅ TestListItem Component (gui/components/test_list_item.py)
   - Displays individual test items
@@ -71,7 +83,13 @@ This document tracks the progress of refactoring the SimpleTest application from
   - Tested with test_control_panel.py
   - Successfully integrated into main application
 
-### Integration Progress
+- ✅ TestExecutor Component (gui/test_executor.py)
+  - Manages main GUI window
+  - Integrates all GUI components
+  - Handles test execution interface
+  - Successfully refactored from main_refactored.py
+
+### Phase 3: Integration Progress
 - ✅ Core components successfully integrated and working together
 - ✅ GUI components successfully integrated into main application
 - ✅ All components verified working with example tests
@@ -81,11 +99,28 @@ This document tracks the progress of refactoring the SimpleTest application from
   - Test status updates properly reflected in UI
   - Running indicator properly tracks test state
 
+### Phase 4: CLI Support
+- ✅ Added CLIExecutor class for command-line interface
+- ✅ Implemented argument parsing
+  - --cli: Run in CLI mode
+  - --test-series: Specify test series file
+  - --test: Run specific test
+- ✅ Updated main() to handle both GUI and CLI modes
+- ✅ Maintained all existing GUI functionality
+- ✅ Refactored into separate modules
+  - core/cli_executor.py
+  - core/cli.py
+  - gui/test_executor.py
+
 ## Next Steps
-- Continue with remaining GUI components from REFACTOR.md
-- Implement CLI mode support
+- Create test files for new components
+  - test_cli_executor.py
+  - test_cli.py
+  - test_test_executor.py
 - Complete documentation updates
 - Perform final integration testing
+- Add error handling improvements
+- Consider additional CLI features
 
 ## Test Results
 All component tests are passing and the application successfully:
@@ -97,5 +132,6 @@ All component tests are passing and the application successfully:
 - Properly manages test execution state
 - Provides accurate visual feedback
 - Manages scrollable test lists efficiently
+- Supports both GUI and CLI modes
 
-Last Updated: After implementing and testing TestList component
+Last Updated: After refactoring TestExecutor, CLIExecutor, and CLI modules

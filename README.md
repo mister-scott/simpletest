@@ -1,40 +1,90 @@
 # SimpleTest
 
 ## Overview
-Simpletest is a Python-based GUI application designed to manage and run a series of custom tests. It provides a user-friendly interface for executing tests, viewing results, and managing test settings. Designed with hardware testing in mind, but will support other uses.
+SimpleTest is a Python-based application designed to manage and run a series of custom tests. It provides both a graphical user interface and command-line interface for executing tests, viewing results, and managing test settings. Designed with hardware testing in mind, but will support other uses.
 
 ## Core Philosophy
-Simpletest is designed in favor of enforcing maintainability of tests and simpletest itself.
+SimpleTest is designed in favor of enforcing maintainability of tests and SimpleTest itself.
 It does this through:
 - Preventing code spaghetti by enforced test segmentation
 - Offering a minimal set of features
 - Ensuring a full test series can be self contained
+- Supporting both GUI and CLI workflows
+- Maintaining a modular, maintainable architecture
 
 ## Features
-- Graphical user interface for test management and execution
+- Dual interface support:
+  - Graphical user interface for interactive test management
+  - Command-line interface for automation and scripting
 - Ability to run individual tests or a series of tests
 - Real-time output display of test results
 - Graphing capabilities for test data visualization
 - Configurable settings via YAML files
 - Status bar displaying program version and test execution timer
 - Logging functionality for output preservation
-- Structured as to support per-testfile unit-testing
+- Structured to support per-testfile unit-testing
 - Supported handling of test-series when packaged as a zip
 - Memory of last test executed
 
 ## Program Structure
 
-### Main Components
-1. `main.py`: The main script that initializes and runs the application.
-2. `TESTS/`: Directory containing test modules and configuration files. Accessible in any test script by ```settings['test_directory']```.
-   - `test_settings.yaml`: Default settings for the test environment.
-   - `test_series.yaml`: Defines the order and composition of the test series.
+### Core Components
+1. `core/`: Core functionality modules
+   - `settings.py`: Settings management
+   - `file_manager.py`: File and test series handling
+   - `output_manager.py`: Output and logging management
+   - `test_runner.py`: Test execution engine
+   - `cli_executor.py`: Command-line interface executor
+   - `cli.py`: CLI argument parsing and entry point
+
+### GUI Components
+1. `gui/`: GUI-related modules
+   - `test_executor.py`: Main GUI application
+   - `components/`: Individual GUI components
+     - `test_list.py`: Test list display
+     - `graph_manager.py`: Graph visualization
+     - `status_bar.py`: Status and timing display
+     - `menu_manager.py`: Menu system
+     - `control_panel.py`: Test control buttons
+
+### Data Directories
+1. `TESTS/`: Directory containing test modules and configuration files
+   - `test_settings.yaml`: Default settings for the test environment
+   - `test_series.yaml`: Defines the order and composition of the test series
    - Individual test modules (e.g., `test_sample.py`, `test_count_and_graph.py`, etc.)
-3. `OUTPUT/`: Directory for test output files and logs. Accessible in any test script by ```settings['output_directory']```.
-4. `WORKING/`: Directory for storing intermediary data required for ongoing and subsequent tests, or for generating output. Accessible in any test script by  ```settings['output_directory']```.
+2. `OUTPUT/`: Directory for test output files and logs
+3. `WORKING/`: Directory for storing intermediary data
+
+## Usage
+
+### GUI Mode
+Run the application without arguments to start in GUI mode:
+```bash
+python main_refactored.py
+```
+
+Optionally specify a test series to load:
+```bash
+python main_refactored.py --test-series path/to/test_series.yaml
+```
+
+### CLI Mode
+Run tests from the command line:
+```bash
+# Run all tests in a series
+python main_refactored.py --cli --test-series path/to/test_series.yaml
+
+# Run a specific test
+python main_refactored.py --cli --test-series path/to/test_series.yaml --test "Test Name"
+```
+
+### Command Line Arguments
+- `--cli`: Run in command-line interface mode
+- `--test-series`: Path to test series YAML file or ZIP archive
+- `--test`: Name of specific test to run (optional)
 
 ## Test Structure
-Each test is a Python module placed in the `tests/` directory. Tests should follow this structure:
+Each test is a Python module that must implement this interface:
 
 ```python
 def maintest(settings, test_series, plot_function, *args, **kwargs):
@@ -44,28 +94,13 @@ def maintest(settings, test_series, plot_function, *args, **kwargs):
     return "pass" or "fail" or "softfail" or "done"
 ```
 
-## Access to settings and test paths
-Each test script may access settings from the passed dictionary settings.
-The keys 'output_directory', 'working_directory', and 'test_directory' are reserved,
-as they are called to direct where the script may find each location.
-
-```python
-settings['output_directory']
-settings['test_directory']
-settings['working_directory']
-```
 ## Configuration
 
 ### test_series.yaml: Defines the tests to be run and their order.
 Test series must:
 - Be named test_series.yaml
 - Be stored in the same directory as the test scripts
-- The contents must be structured like that illustrated below
-
-The same python test file may be called multiple times with different names and
-arguments to permit more flexible execution.
-
-Any args will be passed by the kwargs dictionary-like object to the test.
+- Follow the structure shown below
 
 ```yaml
 tests:
@@ -76,99 +111,55 @@ tests:
     args:
       max_count: 3
 ```
-Review the examples availabe in the provided EXAMPLE_TESTS folder for further details.
 
 ### test_settings.yaml: Contains default settings for the test environment.
-Test settings are a collection of operator-configurable parameters.
-These permit things like test-station specific configuration of hardware (IP address, etc).
-
-If a user modifies the values from the interface, a user-override file is created called 'user_test_settings_override.yaml'.
-This override file is loaded on run if present.
-
-Test settings must:
-- Be named test_settings.yaml
-- Be stored in the same directory as the test scripts
-- The contents must be structured like that illustrated below
 ```yaml
 max_runtime: 60
 verbose_output: true
 debug_mode: false
 ```
 
-## Features
-
-* Test Execution: Run individual tests or the entire series.
-* Real-time Output: View test progress and results in real-time.
-* Graphing: Tests can generate graphs using the provided plot_function.
-* Settings Management: Modify test settings through a GUI interface.
-* Status Tracking: Visual indicators for test status (pass, fail, running, etc.).
-* Logging: Option to save console output to output/log.txt.
-
-
-## Usage
-
-Run main.py to start the application.
-
-Use the GUI to select and run tests.
-
-View results in the output pane and any generated graphs.
-
-Adjust settings as needed through the settings menu.
-
-### Global Variables
-
-* VERSION: Current version of the application.
-* FONT_SIZE: Global font size for the GUI.
-* LOGGING_ENABLED: When True, writes console output to output/log.txt.
-
-### Adding New Tests
-
-Create a new Python file in the tests/ directory.
-
-Implement the maintest function as described in the Test Structure section.
-
-Add the new test to test_series.yaml.
-
-### Logging
-When LOGGING_ENABLED is set to True, all console output is also written to output/log.txt. This feature helps in preserving test results and debugging.
-
-### Imports
-This test demonstrates use of imports and functions for simpletest.
- 
-#### Installed libraries
-Installed libraries are imported in the expected manner as shown above
-using the 'import numpy as np' style.
-
-#### Declared inside test file
-Functions declared inside of test files or inside of maintest will be
-available to maintest.
-
-#### Import of a .py custom library (importlib method)
-Due to the use of threads in managing test-execution, importing files 
-via folder reference tends to be problematic. 
-Use of importlib.util as a workaround rememdies this problem.
-Example:
+## Settings Access
+Each test script can access settings via the settings dictionary:
 ```python
-# Create the 'spec' from the target import file 
-spec = importlib.util.spec_from_file_location(
-    "threshold_methods.py", settings['test_directory'] + "/example_import.py")
-# Read the spec in as a module, and assing it to a variable
-module = importlib.util.module_from_spec(spec)
-# Execute the code in the target library, making it ready for use
-spec.loader.exec_module(module)
-# (Optional) Assign a function from the library to a separate variable
-assigned_exclaim = module.assigned_exclaim
+settings['output_directory']  # Path to output directory
+settings['test_directory']    # Path to test directory
+settings['working_directory'] # Path to working directory
 ```
 
-#### Import of a python project (Directory import with multiple .py files within)
-I'm only aware of two methods to import full python projects as libraries.
+## Importing Custom Libraries
+Due to the threaded execution model, use importlib for custom imports:
+```python
+import importlib.util
 
-Option 1: Typically the easier of the two is to build the project into a package and 
-install it. Instructions on how to do this are readily available online.
+# Import a custom module
+spec = importlib.util.spec_from_file_location(
+    "threshold_methods.py", settings['test_directory'] + "/example_import.py")
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
 
-Option 2: The alternative is to copy all the desired functions into a single file,
-and import it explicitly using the importlib method. Not typically recommended.
+# Use imported functions
+assigned_function = module.some_function
+```
 
-## Notes
+## Development
+The project follows a modular architecture:
+- Core components handle business logic
+- GUI components handle user interface
+- CLI components handle command-line operations
 
-Ensure all required Python libraries are installed (tkinter, matplotlib, pyyaml).
+When adding new features:
+1. Implement core functionality in appropriate core/ module
+2. Add GUI support in gui/ if needed
+3. Add CLI support in core/cli.py if needed
+4. Update tests and documentation
+
+## Requirements
+- Python 3.6+
+- Required packages:
+  - tkinter (for GUI)
+  - matplotlib
+  - pyyaml
+
+## Examples
+See the EXAMPLE_TESTS directory for sample test implementations.
