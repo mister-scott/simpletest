@@ -87,6 +87,7 @@ class TestRunner:
         self._status_observers: List[Callable[[str], None]] = []
         self._test_observers: List[Callable[[int, str], None]] = []
         self._completion_observers: List[Callable[[], None]] = []
+        self.had_exception = False
 
     def load_tests(self) -> None:
         """Load tests from the current test series."""
@@ -115,6 +116,7 @@ class TestRunner:
         self.is_running_tests = True
         self.stop_requested = False
         self.current_test_index = index
+        self.had_exception = False
         
         if single_mode:
             self.start_time = datetime.now()
@@ -146,8 +148,9 @@ class TestRunner:
             
         except Exception as e:
             self.output_manager.write(f"Error running test: {str(e)}\n")
-            test_item.set_status("fail")
-            self._notify_test_complete(index, "fail")
+            test_item.set_status("error")
+            self.had_exception = True
+            self._notify_test_complete(index, "error")
             self.stop_test_series()
 
     def _run_test_thread(self, test_module: Any, test_item: TestItem, index: int) -> None:
@@ -168,7 +171,8 @@ class TestRunner:
             )
         except Exception as e:
             self.output_manager.write(f"Test encountered an exception: {e}\n")
-            result = "fail"
+            result = "error"
+            self.had_exception = True
             
         test_item.set_status(result)
         self._notify_test_complete(index, result)
@@ -186,6 +190,7 @@ class TestRunner:
             self.single_test_mode = False
             self.current_test_index = starting_index
             self.start_time = datetime.now()
+            self.had_exception = False
             self._notify_status("Starting test run")
             self.run_next_test()
 
@@ -298,8 +303,8 @@ class TestRunner:
         for observer in self._test_observers:
             observer(index, status)
         
-        # Handle test failure immediately
-        if status == "fail":
+        # Handle test failure or error immediately
+        if status in ["fail", "error"]:
             self.stop_test_series()
             return
         

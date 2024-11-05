@@ -32,25 +32,28 @@ def parse_args() -> argparse.Namespace:
     
     return parser.parse_args()
 
-def main() -> int:
+def main() -> None:
     """
     Main entry point.
     
-    Returns:
-        int: Exit code (0 for success, 1 for test failure, 2 for configuration error)
+    Uses sys.exit() to return OS-level exit codes:
+    - 0: Success (all tests passed)
+    - 1: Test failure (one or more tests failed)
+    - 2: Error (exceptions, configuration issues)
     """
     args = parse_args()
     
     # If both test series and settings are provided, run in headless mode
     if args.test_series and args.test_settings:
         executor = CLIExecutor()
-        return executor.run_headless(
+        executor.run_headless(
             test_series_file=args.test_series,
             test_settings_file=args.test_settings,
             working_dir=args.working_dir,
             output_dir=args.output_dir,
             selected_test=args.test
         )
+        # Note: run_headless will call sys.exit() with appropriate code
     
     # Otherwise run in GUI mode
     root = tk.Tk()
@@ -68,7 +71,7 @@ def main() -> int:
                     break
     
     root.mainloop()
-    return 0
+    sys.exit(0)
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

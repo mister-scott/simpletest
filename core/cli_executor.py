@@ -100,7 +100,7 @@ class CLIExecutor:
             selected_test: Optional name of specific test to run
             
         Returns:
-            int: Exit code (0 for success, 1 for test failure, 2 for configuration error)
+            int: OS exit code (0 for success, 1 for test failure, 2 for error)
         """
         try:
             # Set directories if provided
@@ -112,12 +112,12 @@ class CLIExecutor:
             # Load test settings
             if not self.settings.load_headless(Path(test_settings_file)):
                 print(f"Error: Failed to load test settings from {test_settings_file}")
-                return 2
+                sys.exit(2)
             
             # Load test series
             if not self.file_manager.set_test_directory(test_series_file):
                 print(f"Error: Failed to load test series from {test_series_file}")
-                return 2
+                sys.exit(2)
             
             # Set up output redirection
             self.redirect_output()
@@ -133,9 +133,12 @@ class CLIExecutor:
                         # Wait for test to complete
                         while self.test_runner.is_running_tests:
                             pass
-                        return 1 if self.had_failures else 0
+                        # Return 2 if there was an exception, 1 if test failed, 0 if passed
+                        if self.test_runner.had_exception:
+                            sys.exit(2)
+                        sys.exit(1 if self.had_failures else 0)
                 print(f"Error: Test '{selected_test}' not found in test series")
-                return 2
+                sys.exit(2)
             else:
                 # Run all tests
                 print("Running all tests...")
@@ -143,11 +146,14 @@ class CLIExecutor:
                 # Wait for tests to complete
                 while self.test_runner.is_running_tests:
                     pass
-                return 1 if self.had_failures else 0
+                # Return 2 if there was an exception, 1 if test failed, 0 if passed
+                if self.test_runner.had_exception:
+                    sys.exit(2)
+                sys.exit(1 if self.had_failures else 0)
                 
         except Exception as e:
             print(f"Error in headless execution: {e}")
-            return 2
+            sys.exit(2)
         finally:
             # Restore original stdout
             self.restore_output()
