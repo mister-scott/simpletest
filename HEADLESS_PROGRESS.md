@@ -1,15 +1,16 @@
 # SimpleTest Headless Mode Implementation Progress
 
 ## Overview
-The CLI mode has been replaced with a new headless mode implementation that provides better control over test execution and configuration.
+The CLI mode has been replaced with a new headless mode implementation that provides better control over test execution and configuration. This mode is designed for automated testing and scripting scenarios where GUI interaction is not needed or desired.
 
 ## Completed Changes
 
-1. CLI Component Changes
-   - ✓ Removed old --cli flag
+1. Command Line Interface Changes
+   - ✓ Removed old CLI mode entirely
    - ✓ Added required --test-series and --test-settings arguments
    - ✓ Added optional --working-dir and --output-dir arguments
    - ✓ Implemented proper exit code handling
+   - ✓ Updated documentation to reflect new interface
 
 2. Settings Component Changes
    - ✓ Added load_headless() method
@@ -21,7 +22,14 @@ The CLI mode has been replaced with a new headless mode implementation that prov
    - ✓ Added run_headless() method
    - ✓ Added test failure tracking
    - ✓ Added proper exit code handling
-   - ✓ Added test completion observer
+   - ✓ Implemented output redirection for logging
+   - ✓ Added proper cleanup of resources
+
+4. Documentation Updates
+   - ✓ Updated README.md to reflect new headless mode
+   - ✓ Removed references to old CLI mode
+   - ✓ Added exit code documentation
+   - ✓ Added examples of headless mode usage
 
 ## Usage
 
@@ -54,6 +62,26 @@ python main.py \
 - 0: All tests passed
 - 1: One or more tests failed
 - 2: Configuration error (missing files, invalid YAML, etc.)
+
+## Implementation Details
+
+### Output Handling
+- Terminal output is displayed in real-time
+- All output is logged to log.txt with timestamps
+- Log file is created in the specified output directory
+- Each log entry includes timestamp and message
+- Uses direct file writing for reliable logging
+
+### Configuration
+- test_settings.yaml is required for headless mode
+- Custom working and output directories are supported
+- Settings from .lastrun.yaml and user overrides are ignored
+
+### Test Execution
+- Tests can be run individually or as a series
+- Test failures are tracked for proper exit codes
+- Execution stops on test failure unless softfail is used
+- All test output is properly logged
 
 ## Testing Instructions
 
@@ -97,17 +125,5 @@ python main.py --test-series test_series.yaml --test-settings test_settings.yaml
 
 1. Add unit tests for headless mode
 2. Add integration tests
-3. Update main documentation
-4. Add example test files
-
-## Implementation Notes
-
-The headless mode implementation:
-- Replaces the previous CLI mode entirely
-- Provides better control over test execution and configuration
-- Supports custom working and output directories
-- Properly handles test failures and configuration errors
-- Integrates well with automated workflows through exit codes
-- Maintains SimpleTest's core philosophy of enforcing maintainability
-
-The implementation follows the specification requirements while improving upon the original CLI mode's functionality.
+3. Add example test files demonstrating headless mode usage
+4. Consider adding additional configuration options specific to headless mode

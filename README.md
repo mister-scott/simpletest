@@ -1,7 +1,7 @@
 # SimpleTest
 
 ## Overview
-SimpleTest is a Python-based application designed to manage and run a series of custom tests. It provides both a graphical user interface and command-line interface for executing tests, viewing results, and managing test settings. Designed with hardware testing in mind, but will support other uses.
+SimpleTest is a Python-based application designed to manage and run a series of custom tests. It provides both a graphical user interface and headless mode for executing tests, viewing results, and managing test settings. Designed with hardware testing in mind, but will support other uses.
 
 ## Core Philosophy
 SimpleTest is designed in favor of enforcing maintainability of tests and SimpleTest itself.
@@ -9,13 +9,13 @@ It does this through:
 - Preventing code spaghetti by enforced test segmentation
 - Offering a minimal set of features
 - Ensuring a full test series can be self contained
-- Supporting both GUI and CLI workflows
+- Supporting both GUI and headless workflows
 - Maintaining a modular, maintainable architecture
 
 ## Features
 - Dual interface support:
   - Graphical user interface for interactive test management
-  - Command-line interface for automation and scripting
+  - Headless mode for automation and scripting
 - Ability to run individual tests or a series of tests
 - Real-time output display of test results
 - Graphing capabilities for test data visualization
@@ -34,8 +34,8 @@ It does this through:
    - `file_manager.py`: File and test series handling
    - `output_manager.py`: Output and logging management
    - `test_runner.py`: Test execution engine
-   - `cli_executor.py`: Command-line interface executor
-   - `cli.py`: CLI argument parsing and entry point
+   - `cli_executor.py`: Headless mode executor
+   - `cli.py`: Command-line argument parsing and entry point
 
 ### GUI Components
 1. `gui/`: GUI-related modules
@@ -68,20 +68,39 @@ Optionally specify a test series to load:
 python main.py --test-series path/to/test_series.yaml
 ```
 
-### CLI Mode
-Run tests from the command line:
+### Headless Mode
+Run tests without GUI for automation and scripting:
 ```bash
 # Run all tests in a series
-python main.py --cli --test-series path/to/test_series.yaml
+python main.py \
+    --test-series path/to/test_series.yaml \
+    --test-settings path/to/test_settings.yaml
 
 # Run a specific test
-python main.py --cli --test-series path/to/test_series.yaml --test "Test Name"
+python main.py \
+    --test-series path/to/test_series.yaml \
+    --test-settings path/to/test_settings.yaml \
+    --test "Test Name"
+
+# Specify custom directories
+python main.py \
+    --test-series path/to/test_series.yaml \
+    --test-settings path/to/test_settings.yaml \
+    --working-dir /path/to/working \
+    --output-dir /path/to/output
 ```
 
 ### Command Line Arguments
-- `--cli`: Run in command-line interface mode
 - `--test-series`: Path to test series YAML file or ZIP archive
+- `--test-settings`: Path to test settings file (required for headless mode)
 - `--test`: Name of specific test to run (optional)
+- `--working-dir`: Working directory path (optional, defaults to ./WORKING)
+- `--output-dir`: Output directory path (optional, defaults to ./OUTPUT)
+
+### Exit Codes (Headless Mode)
+- 0: All tests passed
+- 1: One or more tests failed
+- 2: Configuration error (missing files, invalid YAML, etc.)
 
 ## Test Structure
 Each test is a Python module that must implement this interface:
@@ -146,12 +165,12 @@ assigned_function = module.some_function
 The project follows a modular architecture:
 - Core components handle business logic
 - GUI components handle user interface
-- CLI components handle command-line operations
+- Headless mode components handle automated execution
 
 When adding new features:
 1. Implement core functionality in appropriate core/ module
 2. Add GUI support in gui/ if needed
-3. Add CLI support in core/cli.py if needed
+3. Add headless mode support in core/cli_executor.py if needed
 4. Update tests and documentation
 
 ## Requirements
