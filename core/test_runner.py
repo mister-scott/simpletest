@@ -81,6 +81,7 @@ class TestRunner:
         self.current_test_index: int = 0
         self.is_running_tests: bool = False
         self.stop_requested: bool = False
+        self.single_test_mode: bool = False
         self.current_test_thread: Optional[Thread] = None
         self.start_time: Optional[datetime] = None
         self._status_observers: List[Callable[[str], None]] = []
@@ -108,6 +109,12 @@ class TestRunner:
         """
         if not 0 <= index < len(self.test_items):
             raise ValueError("Invalid test index")
+            
+        self.single_test_mode = True
+        self.is_running_tests = True
+        self.stop_requested = False
+        self.current_test_index = index
+        self.start_time = datetime.now()
             
         test_item = self.test_items[index]
         self._notify_status(f"Running test: {test_item.name}")
@@ -170,6 +177,7 @@ class TestRunner:
         if not self.is_running_tests:
             self.stop_requested = False
             self.is_running_tests = True
+            self.single_test_mode = False
             self.current_test_index = starting_index
             self.start_time = datetime.now()
             self._notify_status("Starting test run")
@@ -188,6 +196,7 @@ class TestRunner:
         """Stop the test series after current test completes."""
         self.stop_requested = True
         self.is_running_tests = False
+        self.single_test_mode = False
         self.start_time = None
         self._notify_status("Test series stopped")
         self._notify_completion()
@@ -278,16 +287,20 @@ class TestRunner:
         for observer in self._test_observers:
             observer(index, status)
         
-        if not self.stop_requested:
+        if self.single_test_mode:
+            # In single test mode, stop after the test completes
+            self.is_running_tests = False
+            self._notify_completion()
+        elif not self.stop_requested:
+            # In run all mode, continue to next test if not stopped
             if self.current_test_index < len(self.test_items) - 1:
                 self.current_test_index += 1
                 self.run_next_test()
             else:
-                # If this was the last test or a single test run
+                # If this was the last test
                 self.is_running_tests = False
                 self._notify_completion()
         else:
+            # If stop was requested
             self.is_running_tests = False
             self._notify_completion()
-
-# Rest of the file remains exactly the same
